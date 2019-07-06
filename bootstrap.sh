@@ -92,7 +92,7 @@ su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && 
 }
 
 M_FORGE_JAR_PATH="$(ls ${MC_INSTALL_DIR}/forge-*.jar)"
-su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_JAR_PATH}" || {
+su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_JAR_PATH} --installServer" || {
     _die "Failed to execute forge"
 }
 
