@@ -31,7 +31,7 @@ command -v systemctl >/dev/null 2>&1 || _die "systemd not found. No other init s
 
 if [ -d "${MINECRAFT_SYSTEMD_SERVICE_PATH}" ]; then
     systemctl daemon-reload
-    systemctl stop "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || "${MINECRAFT_SYSTEMD_SERVICE_NAME}.service not running..."
+    systemctl stop "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _log "${MINECRAFT_SYSTEMD_SERVICE_NAME}.service not running..."
 fi
 
 # Disabling passwords is traditonally frowned upon, however since the server's sole purpose is running minecraft we can relax on security.
@@ -92,5 +92,6 @@ systemctl enable "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _die "Failed to permanen
 _log "Starting ${MINECRAFT_SYSTEMD_SERVICE_NAME}.service. This can take awhile... Go grab some popcorn."
 systemctl start "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _die "Failed to start ${MINECRAFT_SYSTEMD_SERVICE_NAME} with systemd"
 
-_log "Server is accessible from the following ip addresses: $(hostname -I)"
+ip_addresses="$(hostname -I)"
+_log "Server is accessible from the following ip addresses: ${ip_addresses}"
  
