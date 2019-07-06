@@ -19,7 +19,7 @@ curl https://raw.githubusercontent.com/egladman/bootstrap-minecraft/master/boots
 curl https://raw.githubusercontent.com/egladman/bootstrap-minecraft/master/bootstrap.sh > ./bootstrap.sh
 ```
 
-*Modify the script to your heart's content...*
+*Modify the script to your heart's content...like `MINECRAFT_MIN_HEAP_SIZE` and `MINECRAFT_MAX_HEAP_SIZE`*
 
 ```
 bash bootstrap.sh
