@@ -55,9 +55,10 @@ cat << EOF > "${MINECRAFT_EXECUTABLE_PATH}"
 java -Xms${MINECRAFT_MIN_HEAP_SIZE} -Xmx${MINECRAFT_MAX_HEAP_SIZE} -jar ${MINECRAFT_JAR_PATH}
 EOF
 
+chown -R "${MINECRAFT_USER}":"${MINECRAFT_USER}" "${MINECRAFT_INSTALL_DIR}"
 chmod +x "${MINECRAFT_EXECUTABLE_PATH}" || _die "Failed to perform chmod on ${MINECRAFT_EXECUTABLE_PATH}"
 
-su - "${MINECRAFT_USER}" -c "/bin/bash ${MINECRAFT_EXECUTABLE_PATH}" || {
+su - "${MINECRAFT_USER}" -c "cd ${MINECRAFT_INSTALL_DIR}; /bin/bash ${MINECRAFT_EXECUTABLE_PATH}" && {
     # When executed for the first time, the process will exit. We need to accept the EULA
     _log "Accepting end user license agreement"
     sed -i -e 's/false/true/' "${MINECRAFT_INSTALL_DIR}/eula.txt" || _die "Failed to modify ${MINECRAFT_INSTALL_DIR}/eula.txt"
