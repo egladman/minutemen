@@ -89,7 +89,8 @@ EOF
 _log "Configuring systemd to automatically start ${MINECRAFT_SYSTEMD_SERVICE_NAME}.service on boot"
 systemctl enable "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _die "Failed to permanently enable ${MINECRAFT_SYSTEMD_SERVICE_NAME} with systemd"
 
-_log "Starting ${MINECRAFT_SYSTEMD_SERVICE_NAME}.service"
+_log "Starting ${MINECRAFT_SYSTEMD_SERVICE_NAME}.service. This can take awhile... Go grab some popcorn."
 systemctl start "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _die "Failed to start ${MINECRAFT_SYSTEMD_SERVICE_NAME} with systemd"
 
 _log "Server is accessible from the following ip addresses: $(hostname -I)"
+ 
