@@ -20,7 +20,8 @@ M_FORGE_DOWNLOAD_SHA1="e4fd5f2ade6f4d6d3e18971fa18d8aade6ba1358"
 
 MC_DOWNLOAD_ACTUAL_SHA256SUM=""
 M_FORGE_DOWNLOAD_ACTUAL_SHA1=""
-M_FORGE_JAR_PATH=""
+M_FORGE_INSTALLER_JAR_PATH=""
+M_FORGE_UNIVERSAL_JAR_PATH=""
 
 RED="\033[0;31m"
 GREEN="\033[32m"
@@ -91,9 +92,14 @@ su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && 
     sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify ${MC_INSTALL_DIR}/eula.txt"
 }
 
-M_FORGE_JAR_PATH="$(ls ${MC_INSTALL_DIR}/forge-*.jar)"
-su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_JAR_PATH} --installServer" || {
-    _die "Failed to execute forge"
+M_FORGE_INSTALLER_JAR_PATH="$(ls ${MC_INSTALL_DIR}/forge-*installer.jar)"
+su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PATH} --installServer" || {
+    _die "Failed to execute ${M_FORGE_INSTALLER_JAR_PATH}"
+}
+
+M_FORGE_UNIVERSAL_JAR_PATH="$(ls ${MC_INSTALL_DIR}/forge-*universal.jar)"
+su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_UNIVERSAL_JAR_PATH}" || {
+    _die "Failed to execute ${M_FORGE_UNIVERSAL_JAR_PATH}"
 }
 
 cat << EOF > "${MC_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
