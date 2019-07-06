@@ -77,6 +77,7 @@ After=network.target
 [Service]
 Type=simple
 User=${MINECRAFT_USER}
+WorkingDirectory=${MINECRAFT_INSTALL_DIR}
 ExecStart=/bin/bash ${MINECRAFT_EXECUTABLE_PATH}
 Restart=on-failure
 
