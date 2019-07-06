@@ -29,6 +29,11 @@ _die() {
 
 command -v systemctl >/dev/null 2>&1 || _die "systemd not found. No other init systems are currently supported." # Sanity check
 
+if [ -d "${MINECRAFT_SYSTEMD_SERVICE_PATH}" ]; then
+    systemctl daemon-reload
+    systemctl stop "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || "${MINECRAFT_SYSTEMD_SERVICE_NAME}.service not running..."
+fi
+
 # Disabling passwords is traditonally frowned upon, however since the server's sole purpose is running minecraft we can relax on security.
 _log "Creating user: ${MINECRAFT_USER}"
 command -v apt-get >/dev/null 2>&1 && adduser --disabled-password --gecos "" "${MINECRAFT_USER}"
