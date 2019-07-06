@@ -4,8 +4,8 @@ MINECRAFT_DOWNLOAD_URL="https://launcher.mojang.com/v1/objects/d0d0fe2b1dc6ab4c6
 MINECRAFT_VERSION="1.14.3"
 
 MINECRAFT_INSTALL_DIR="/opt/minecraft"
-MINECRAFT_MIN_HEAP_SIZE="2048M"
-MINECRAFT_MAX_HEAP_SIZE="3968M"
+MINECRAFT_MIN_HEAP_SIZE="1024M"
+MINECRAFT_MAX_HEAP_SIZE="1920M" # You'll want to bump this up if have more ram avaialble to you 
 MINECRAFT_USER="minecraft" # For the love of god don't be an asshat and change to "root"
 MINECRAFT_JAR_PATH="${MINECRAFT_INSTALL_DIR}/server.${MINECRAFT_VERSION}.jar"
 MINECRAFT_EXECUTABLE_PATH="${MINECRAFT_INSTALL_DIR}/run.sh"
