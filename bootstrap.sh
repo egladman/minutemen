@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MINECRAFT_DOWNLOAD_URL="https://launcher.mojang.com/v1/objects/d0d0fe2b1dc6ab4c65554cb734270872b72dadd6/server.jar" Latest download link as of 7/06/2019
+MINECRAFT_DOWNLOAD_URL="https://launcher.mojang.com/v1/objects/d0d0fe2b1dc6ab4c65554cb734270872b72dadd6/server.jar" # Latest download link as of 7/06/2019
 MINECRAFT_VERSION="1.14.3"
 
 MINECRAFT_INSTALL_DIR="/opt/minecraft"
@@ -42,7 +42,7 @@ else
 fi
 
 _log "Downloading minecraft jar..."
-wget "${MINECRAFT_DOWNLOAD_URL} -O "${MINECRAFT_JAR_PATH}" || _die "Failed to fetch ${MINECRAFT_DOWNLOAD_URL}"
+wget "${MINECRAFT_DOWNLOAD_URL}" -O "${MINECRAFT_JAR_PATH}" || _die "Failed to fetch ${MINECRAFT_DOWNLOAD_URL}"
 
 # Install Ubuntu dependencies
 apt_dependencies=(
@@ -50,32 +50,33 @@ apt_dependencies=(
 )
 command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
 
-cat << EOF >> "${MINECRAFT_EXECUTABLE_PATH}"
+cat << EOF > "${MINECRAFT_EXECUTABLE_PATH}"
 #!/bin/bash
 java -Xms${MINECRAFT_MIN_HEAP_SIZE} -Xmx${MINECRAFT_MAX_HEAP_SIZE} -jar ${MINECRAFT_JAR_PATH}
 EOF
 
 chmod +x "${MINECRAFT_EXECUTABLE_PATH}" || _die "Failed to perform chmod on ${MINECRAFT_EXECUTABLE_PATH}"
 
-/usr/bin/bash ${MINECRAFT_EXECUTABLE_PATH} || {
+su - "${MINECRAFT_USER}" -c "/bin/bash ${MINECRAFT_EXECUTABLE_PATH}" || {
     # When executed for the first time, the process will exit. We need to accept the EULA
     _log "Accepting end user license agreement"
     sed -i -e 's/false/true/' "${MINECRAFT_INSTALL_DIR}/eula.txt" || _die "Failed to modify ${MINECRAFT_INSTALL_DIR}/eula.txt"
 }
 
-cat << EOF >> "${MINECRAFT_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
+cat << EOF > "${MINECRAFT_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
 [Unit]
 Description=minecraft server
 After=network.target
-StartLimitIntervalSec=0
+
 [Service]
 Type=simple
-Restart=always
-RestartSec=1
 User=${MINECRAFT_USER}
 ExecStart=/usr/bin/bash ${MINECRAFT_EXECUTABLE_PATH}
+Restart=on-failure
+
 [Install]
 WantedBy=multi-user.target
+
 EOF
 
 _log "Starting ${MINECRAFT_SYSTEMD_SERVICE_NAME}"
