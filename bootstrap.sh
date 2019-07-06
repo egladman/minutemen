@@ -72,7 +72,7 @@ After=network.target
 [Service]
 Type=simple
 User=${MINECRAFT_USER}
-ExecStart=/usr/bin/bash ${MINECRAFT_EXECUTABLE_PATH}
+ExecStart=/bin/bash ${MINECRAFT_EXECUTABLE_PATH}
 Restart=on-failure
 
 [Install]
