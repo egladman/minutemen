@@ -1,6 +1,7 @@
 #!/bin/bash
 
 MINECRAFT_DOWNLOAD_URL="https://launcher.mojang.com/v1/objects/d0d0fe2b1dc6ab4c65554cb734270872b72dadd6/server.jar" # Latest download link as of 7/06/2019
+MINECRAFT_DOWNLOAD_SHA256SUM="942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f1041b38"
 MINECRAFT_VERSION="1.14.3"
 
 MINECRAFT_INSTALL_DIR="/opt/minecraft"
@@ -11,6 +12,8 @@ MINECRAFT_JAR_PATH="${MINECRAFT_INSTALL_DIR}/server.${MINECRAFT_VERSION}.jar"
 MINECRAFT_EXECUTABLE_PATH="${MINECRAFT_INSTALL_DIR}/run.sh"
 MINECRAFT_SYSTEMD_SERVICE_NAME="minecraftd"
 MINECRAFT_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MINECRAFT_SYSTEMD_SERVICE_NAME}.service"
+
+MINECRAFT_DOWNLOAD_ACTUAL_SHA256SUM=""
 
 RED="\033[0;31m"
 GREEN="\033[32m"
@@ -48,6 +51,12 @@ fi
 
 _log "Downloading minecraft jar..."
 wget "${MINECRAFT_DOWNLOAD_URL}" -O "${MINECRAFT_JAR_PATH}" || _die "Failed to fetch ${MINECRAFT_DOWNLOAD_URL}"
+
+# Validate file download integrity
+MINECRAFT_DOWNLOAD_ACTUAL_SHA256SUM="$(sha256sum ${MINECRAFT_JAR_PATH} | cut -d' ' -f1)"
+if [ "${MINECRAFT_DOWNLOAD_ACTUAL_SHA256SUM}" != "${MINECRAFT_DOWNLOAD_SHA256SUM}" ]; then
+    _die "sha256sum doesn't match for ${MINECRAFT_JAR_PATH}"
+fi
 
 # Install Ubuntu dependencies
 apt_dependencies=(
