@@ -15,11 +15,12 @@ MC_SYSTEMD_SERVICE_NAME="minecraftd"
 MC_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MC_SYSTEMD_SERVICE_NAME}.service"
 
 # M_* denotes Minecraft Mod
-M_FORGE_DOWNLOAD_URL="http://files.minecraftforge.net/maven/net/minecraftforge/forge/1.12.2-14.23.5.2837/forge-1.12.2-14.23.5.2837-universal.jar"
+M_FORGE_DOWNLOAD_URL="https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.12.2-14.23.5.2837/forge-1.12.2-14.23.5.2837-installer.jar"
 M_FORGE_DOWNLOAD_SHA1="e4fd5f2ade6f4d6d3e18971fa18d8aade6ba1358"
 
 MC_DOWNLOAD_ACTUAL_SHA256SUM=""
 M_FORGE_DOWNLOAD_ACTUAL_SHA1=""
+M_FORGE_JAR_PATH=""
 
 RED="\033[0;31m"
 GREEN="\033[32m"
@@ -72,6 +73,7 @@ wget "${M_FORGE_DOWNLOAD_URL}" -P "${MC_INSTALL_DIR}" || _die "Failed to fetch $
 # Install Ubuntu dependencies
 apt_dependencies=(
     "openjdk-11-jdk"
+    "libsfml-dev"
 )
 command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
 
@@ -89,7 +91,8 @@ su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && 
     sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify ${MC_INSTALL_DIR}/eula.txt"
 }
 
-su - "${MC_USER}" -c "java -jar forge-*.jar" || {
+M_FORGE_JAR_PATH="$(ls ${MC_INSTALL_DIR}/forge-*.jar)"
+su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_JAR_PATH}" || {
     _die "Failed to execute forge"
 }
 
