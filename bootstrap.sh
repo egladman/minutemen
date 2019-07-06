@@ -86,6 +86,10 @@ WantedBy=multi-user.target
 
 EOF
 
-_log "Starting ${MINECRAFT_SYSTEMD_SERVICE_NAME}"
-systemctl start "${MINECRAFT_SYSTEMD_SERVICE_PATH}" || _die "Failed to start ${MINECRAFT_SYSTEMD_SERVICE_NAME} with systemd"
-systemctl enable "${MINECRAFT_SYSTEMD_SERVICE_PATH}" || _die "Failed to permanently enable ${MINECRAFT_SYSTEMD_SERVICE_NAME} with systemd"
+_log "Configuring systemd to automatically start ${MINECRAFT_SYSTEMD_SERVICE_NAME}.service on boot"
+systemctl enable "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _die "Failed to permanently enable ${MINECRAFT_SYSTEMD_SERVICE_NAME} with systemd"
+
+_log "Starting ${MINECRAFT_SYSTEMD_SERVICE_NAME}.service"
+systemctl start "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _die "Failed to start ${MINECRAFT_SYSTEMD_SERVICE_NAME} with systemd"
+
+_log "Server is accessible from the following ip addresses: $(hostname -I)"
