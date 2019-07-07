@@ -1,27 +1,28 @@
 # bootstrap-minecraft
 
-### Need to know
+Build/Provision minecraft servers with forge mod support in seconds. 
 
+### Need to know
+ 
 - Currently only supports `ubuntu` and its derivatives
 
 
-### Quick
+### Quick and Dirty
+
+> curl | bash is indefensible. Just because the transport is over HTTPS doesn't guarantee the content hasn't been maliciously modified on the server. It also doesn't guarantee that you won't receive a partial download that happens to stop at some inopportune time. 
 
 ```
 curl https://raw.githubusercontent.com/egladman/bootstrap-minecraft/master/bootstrap.sh | bash
 ```
-*Piping curl to bash because i'm lazy... Don't hate*
 
 
-### Advanced
-
-```
-curl https://raw.githubusercontent.com/egladman/bootstrap-minecraft/master/bootstrap.sh > ./bootstrap.sh
-```
-
-*Modify the script to your heart's content...like `MINECRAFT_MIN_HEAP_SIZE` and `MINECRAFT_MAX_HEAP_SIZE`*
+### The proper way
 
 ```
-bash bootstrap.sh
+git clone git@github.com:egladman/bootstrap-minecraft.git
+cd bootstrap-minecraft
+./bootstrap.sh
 ```
+
+*Modify the script to your heart's content...
  
