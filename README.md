@@ -45,3 +45,9 @@ su - minecraft
 systemctl status minecraftd
 ps aux | grep minecraft
 ```
+
+4. View logs that would typically be printed to stdout
+```
+journalctl -u minecraftd.service
+```
+ 
