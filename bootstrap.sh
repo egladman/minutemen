@@ -40,7 +40,6 @@ CLR_NONE="\033[0m"
 # Variables that are dynamically created later
 M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM=""
 M_FORGE_UNIVERSAL_JAR_PATH=""
-M_FORGE_UNIVERSAL_JAR=""
 SYS_TOTAL_MEMORY_KB=""
 SYS_TOTAL_MEMORY_MB=""
 
@@ -118,8 +117,7 @@ su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PA
 _success "${M_FORGE_INSTALLER_JAR} completed!}"
 
 # the "cd" ensures we get just the basename 
-M_FORGE_UNIVERSAL_JAR="$(cd ${MC_INSTALL_DIR}; ls ${MC_INSTALL_DIR}/forge-*.jar | grep -v ${M_FORGE_INSTALLER_JAR})" #We will run into issues if multiple versions of forge are present
-M_FORGE_UNIVERSAL_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_UNIVERSAL_JAR}"
+M_FORGE_UNIVERSAL_JAR_PATH="$(cd ${MC_INSTALL_DIR}; ls ${MC_INSTALL_DIR}/forge-*.jar | grep -v ${M_FORGE_INSTALLER_JAR})" #We will run into issues if multiple versions of forge are present
 
 # Create the wrapper script that systemd invokes
 _debug "Creating ${MC_EXECUTABLE_PATH}"
