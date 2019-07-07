@@ -1,93 +1,150 @@
 #!/bin/bash
 
-MINECRAFT_DOWNLOAD_URL="https://launcher.mojang.com/v1/objects/d0d0fe2b1dc6ab4c65554cb734270872b72dadd6/server.jar" # Latest download link as of 7/06/2019
-MINECRAFT_DOWNLOAD_SHA256SUM="942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f1041b38"
-MINECRAFT_VERSION="1.14.3"
+################################################################################
+#                                                                              #
+#                             bootstrap-minecraft                              #
+#                           Written By: Eli Gladman                            #
+#                                                                              #
+#                                                                              #
+#                                   EXAMPLE                                    #
+#                               ./bootstrap.sh                                 #
+#                                                                              #
+#                https://github.com/egladman/bootstrap-minecraft               #
+#                                                                              #
+################################################################################
 
-MINECRAFT_INSTALL_DIR="/opt/minecraft"
-MINECRAFT_MIN_HEAP_SIZE="1024M"
-MINECRAFT_MAX_HEAP_SIZE="1920M" # You'll want to bump this up if have more ram avaialble to you 
-MINECRAFT_USER="minecraft" # For the love of god don't be an asshat and change to "root"
-MINECRAFT_JAR_PATH="${MINECRAFT_INSTALL_DIR}/server.${MINECRAFT_VERSION}.jar"
-MINECRAFT_EXECUTABLE_PATH="${MINECRAFT_INSTALL_DIR}/run.sh"
-MINECRAFT_SYSTEMD_SERVICE_NAME="minecraftd"
-MINECRAFT_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MINECRAFT_SYSTEMD_SERVICE_NAME}.service"
+# MC_* denotes Minecraft or Master Chief 
+MC_INSTALL_DIR="/opt/minecraft"
+MC_MAX_HEAP_SIZE="896M" # Not some random number i pulled out of a hat: 1024-128
+MC_USER="minecraft" # For the love of god don't be an asshat and change to "root"
+MC_EXECUTABLE_PATH="${MC_INSTALL_DIR}/start.sh"
+MC_SYSTEMD_SERVICE_NAME="minecraftd"
+MC_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MC_SYSTEMD_SERVICE_NAME}.service"
 
-MINECRAFT_DOWNLOAD_ACTUAL_SHA256SUM=""
+# M_* denotes Minecraft Mod
+M_FORGE_DOWNLOAD_URL="https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.3-27.0.25/forge-1.14.3-27.0.25-installer.jar"
+M_FORGE_DOWNLOAD_SHA1SUM="7b96f250e52584086591e14472b96ec2648a1c9c"
+M_FORGE_INSTALLER_JAR="$(basename ${M_FORGE_DOWNLOAD_URL})"
+M_FORGE_INSTALLER_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_INSTALLER_JAR}"
 
-RED="\033[0;31m"
-GREEN="\033[32m"
-YELLOW="\033[33m"
-CYAN="\033[36m"
-NC="\033[0m" #No color
+# SYS_* denotes System
+SYS_JAVA_PATH="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
 
+# CLR_* denotes Color
+CLR_RED="\033[0;31m"
+CLR_GREEN="\033[32m"
+CLR_YELLOW="\033[33m"
+CLR_CYAN="\033[36m"
+CLR_NONE="\033[0m"
+
+# Variables that are dynamically created later
+M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM=""
+M_FORGE_UNIVERSAL_JAR_PATH=""
+SYS_TOTAL_MEMORY_KB=""
+SYS_TOTAL_MEMORY_MB=""
+
+# Helpers
 _log() {
     echo -e ${0##*/}: "${@}" 1>&2
 }
 
+_debug() {
+    _log "${CLR_CYAN}DEBUG:${CLR_NONE} ${@}"
+}
+
+_warn() {
+    _log "${CLR_YELLOW}WARNING:${CLR_NONE} ${@}"
+}
+
+_success() {
+    _log "${CLR_GREEN}SUCCESS:${CLR_NONE} ${@}"
+}
+
 _die() {
-    _log "${RED}FATAL:${NC} ${@}"
+    _log "${CLR_RED}FATAL:${CLR_NONE} ${@}"
     exit 1
 }
 
+# Where the magic happens
 command -v systemctl >/dev/null 2>&1 || _die "systemd not found. No other init systems are currently supported." # Sanity check
 
-if [ -d "${MINECRAFT_SYSTEMD_SERVICE_PATH}" ]; then
+if [ -d "${MC_SYSTEMD_SERVICE_PATH}" ]; then
     systemctl daemon-reload
-    systemctl stop "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _log "${MINECRAFT_SYSTEMD_SERVICE_NAME}.service not running..."
+    systemctl stop "${MC_SYSTEMD_SERVICE_NAME}" || _log "${MC_SYSTEMD_SERVICE_NAME}.service not running..."
 fi
 
 # Disabling passwords is traditonally frowned upon, however since the server's sole purpose is running minecraft we can relax on security.
-_log "Creating user: ${MINECRAFT_USER}"
-command -v apt-get >/dev/null 2>&1 && adduser --disabled-password --gecos "" "${MINECRAFT_USER}"
+_log "Creating user: ${MC_USER}"
+command -v apt-get >/dev/null 2>&1 && adduser --disabled-password --gecos "" "${MC_USER}"
 
-if [ ! -d "${MINECRAFT_INSTALL_DIR}" ]; then
-    _log "Creating ${MINECRAFT_INSTALL_DIR}"
-    mkdir -m 700 "${MINECRAFT_INSTALL_DIR}" || _die "Failed to create ${MINECRAFT_INSTALL_DIR} and set permissions"
-    chown "${MINECRAFT_USER}":"${MINECRAFT_USER}" "${MINECRAFT_INSTALL_DIR}"
+if [ ! -d "${MC_INSTALL_DIR}" ]; then
+    _log "Creating ${MC_INSTALL_DIR}"
+    mkdir -m 700 "${MC_INSTALL_DIR}" || _die "Failed to create ${MC_INSTALL_DIR} and set permissions"
+    chown "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"
 else
-    _log "${MINECRAFT_INSTALL_DIR} already exists. Proceeding with install."
+    _log "${MC_INSTALL_DIR} already exists. Proceeding with install."
 fi
 
-_log "Downloading minecraft jar..."
-wget "${MINECRAFT_DOWNLOAD_URL}" -O "${MINECRAFT_JAR_PATH}" || _die "Failed to fetch ${MINECRAFT_DOWNLOAD_URL}"
+_log "Downloading forge..."
+wget "${M_FORGE_DOWNLOAD_URL}" -P "${MC_INSTALL_DIR}" || _die "Failed to fetch ${M_FORGE_DOWNLOAD_URL}"
 
 # Validate file download integrity
-MINECRAFT_DOWNLOAD_ACTUAL_SHA256SUM="$(sha256sum ${MINECRAFT_JAR_PATH} | cut -d' ' -f1)"
-if [ "${MINECRAFT_DOWNLOAD_ACTUAL_SHA256SUM}" != "${MINECRAFT_DOWNLOAD_SHA256SUM}" ]; then
-    _die "sha256sum doesn't match for ${MINECRAFT_JAR_PATH}"
+M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM="$(sha1sum ${M_FORGE_INSTALLER_JAR_PATH} | cut -d' ' -f1)"
+if [ "${M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM}" != "${M_FORGE_DOWNLOAD_SHA1SUM}" ]; then
+    _debug "M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM: ${M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM}"
+    _debug "M_FORGE_DOWNLOAD_SHA1SUM: ${M_FORGE_DOWNLOAD_SHA1SUM}"
+    _die "sha1sum doesn't match for ${M_FORGE_INSTALLER_JAR_PATH}"
 fi
 
 # Install Ubuntu dependencies
 apt_dependencies=(
-    "openjdk-11-jdk"
+    "openjdk-8-jdk" # openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
 )
 command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
 
-cat << EOF > "${MINECRAFT_EXECUTABLE_PATH}"
+#Configure /usr/bin/java to point to openjdk-8 instead of openjdk-11
+update-alternatives --set java "${SYS_JAVA_PATH}" || _die "Failed to default java to openjdk-8"
+
+SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
+SYS_TOTAL_MEMORY_MB="$(( $SYS_TOTAL_MEMORY_KB / 1024 ))"
+MC_MAX_HEAP_SIZE="$(( $SYS_TOTAL_MEMORY_MB - 128 ))M" # Leave 128MB memory for the system to run properly
+
+chown -R "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"
+
+su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PATH} --installServer" || {
+    _die "Failed to execute ${M_FORGE_INSTALLER_JAR_PATH}"
+}
+_success "${M_FORGE_INSTALLER_JAR} completed!}"
+
+# the "cd" ensures we get just the basename 
+M_FORGE_UNIVERSAL_JAR_PATH="$(cd ${MC_INSTALL_DIR}; ls ${MC_INSTALL_DIR}/forge-*.jar | grep -v ${M_FORGE_INSTALLER_JAR})" #We will run into issues if multiple versions of forge are present
+
+# Create the wrapper script that systemd invokes
+_debug "Creating ${MC_EXECUTABLE_PATH}"
+cat << EOF > "${MC_EXECUTABLE_PATH}"
 #!/bin/bash
-java -Xms${MINECRAFT_MIN_HEAP_SIZE} -Xmx${MINECRAFT_MAX_HEAP_SIZE} -jar ${MINECRAFT_JAR_PATH}
+java -Xmx${MC_MAX_HEAP_SIZE} -jar ${M_FORGE_UNIVERSAL_JAR_PATH}
 EOF
 
-chown -R "${MINECRAFT_USER}":"${MINECRAFT_USER}" "${MINECRAFT_INSTALL_DIR}"
-chmod +x "${MINECRAFT_EXECUTABLE_PATH}" || _die "Failed to perform chmod on ${MINECRAFT_EXECUTABLE_PATH}"
+chmod +x "${MC_EXECUTABLE_PATH}" || _die "Failed to perform chmod on ${MC_EXECUTABLE_PATH}"
 
-su - "${MINECRAFT_USER}" -c "cd ${MINECRAFT_INSTALL_DIR}; /bin/bash ${MINECRAFT_EXECUTABLE_PATH}" && {
+su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
     # When executed for the first time, the process will exit. We need to accept the EULA
     _log "Accepting end user license agreement"
-    sed -i -e 's/false/true/' "${MINECRAFT_INSTALL_DIR}/eula.txt" || _die "Failed to modify ${MINECRAFT_INSTALL_DIR}/eula.txt"
-}
+    sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify ${MC_INSTALL_DIR}/eula.txt"
+} || _die "Failed to execute ${MC_EXECUTABLE_PATH} for the first time."
 
-cat << EOF > "${MINECRAFT_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
+_debug "Creating ${MC_SYSTEMD_SERVICE_PATH}"
+cat << EOF > "${MC_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
 [Unit]
 Description=minecraft server
 After=network.target
 
 [Service]
 Type=simple
-User=${MINECRAFT_USER}
-WorkingDirectory=${MINECRAFT_INSTALL_DIR}
-ExecStart=/bin/bash ${MINECRAFT_EXECUTABLE_PATH}
+User=${MC_USER}
+WorkingDirectory=${MC_INSTALL_DIR}
+ExecStart=/bin/bash ${MC_EXECUTABLE_PATH}
 Restart=on-failure
 
 [Install]
@@ -95,12 +152,12 @@ WantedBy=multi-user.target
 
 EOF
 
-_log "Configuring systemd to automatically start ${MINECRAFT_SYSTEMD_SERVICE_NAME}.service on boot"
-systemctl enable "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _die "Failed to permanently enable ${MINECRAFT_SYSTEMD_SERVICE_NAME} with systemd"
+_log "Configuring systemd to automatically start ${MC_SYSTEMD_SERVICE_NAME}.service on boot"
+systemctl enable "${MC_SYSTEMD_SERVICE_NAME}" || _die "Failed to permanently enable ${MC_SYSTEMD_SERVICE_NAME} with systemd"
 
-_log "Starting ${MINECRAFT_SYSTEMD_SERVICE_NAME}.service. This can take awhile... Go grab some popcorn."
-systemctl start "${MINECRAFT_SYSTEMD_SERVICE_NAME}" || _die "Failed to start ${MINECRAFT_SYSTEMD_SERVICE_NAME} with systemd"
+_log "Starting ${MC_SYSTEMD_SERVICE_NAME}.service. This can take awhile... Go grab some popcorn."
+systemctl start "${MC_SYSTEMD_SERVICE_NAME}" || _die "Failed to start ${MC_SYSTEMD_SERVICE_NAME} with systemd"
 
 ip_addresses="$(hostname -I)"
-_log "Server is accessible from the following ip addresses: ${ip_addresses}"
+_success "Server is now running. Go crazy ${ip_addresses}"
  
