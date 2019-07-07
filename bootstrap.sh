@@ -12,7 +12,7 @@ MC_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MC_SYSTEMD_SERVICE_NAME}.service"
 M_FORGE_DOWNLOAD_URL="https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.3-27.0.25/forge-1.14.3-27.0.25-installer.jar"
 M_FORGE_DOWNLOAD_SHA1SUM="7b96f250e52584086591e14472b96ec2648a1c9c"
 M_FORGE_INSTALLER_JAR="$(basename ${M_FORGE_DOWNLOAD_URL})"
-M_FORGE_INSTALLER_JAR_PATH="${MC_INSTALL_DIR}/M_FORGE_INSTALLER_JAR"
+M_FORGE_INSTALLER_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_INSTALLER_JAR}"
 
 # SYS_* denotes System
 SYS_JAVA_PATH="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
