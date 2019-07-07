@@ -79,6 +79,8 @@ wget "${M_FORGE_DOWNLOAD_URL}" -P "${MC_INSTALL_DIR}" || _die "Failed to fetch $
 # Validate file download integrity
 M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM="$(sha1sum ${M_FORGE_INSTALLER_JAR_PATH} | cut -d' ' -f1)"
 if [ "${M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM}" != "${M_FORGE_DOWNLOAD_SHA1SUM}" ]; then
+    _debug "M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM: ${M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM}"
+    _debug "M_FORGE_DOWNLOAD_SHA1SUM: ${M_FORGE_DOWNLOAD_SHA1SUM}"
     _die "sha1sum doesn't match for ${M_FORGE_INSTALLER_JAR_PATH}"
 fi
 
