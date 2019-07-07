@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# M_C* denotes Minecraft
+# MC_* denotes Minecraft or Master Chief 
 MC_DOWNLOAD_URL="https://launcher.mojang.com/v1/objects/d0d0fe2b1dc6ab4c65554cb734270872b72dadd6/server.jar" # Latest download link as of 7/06/2019
 MC_DOWNLOAD_SHA256SUM="942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f1041b38"
 MC_VERSION="1.14.3"
