@@ -16,7 +16,7 @@ curl https://raw.githubusercontent.com/egladman/bootstrap-minecraft/master/boots
 ```
 
 
-### The proper way
+### The Proper Way
 
 ```
 git clone git@github.com:egladman/bootstrap-minecraft.git
