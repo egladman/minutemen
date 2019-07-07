@@ -57,7 +57,7 @@ _warn() {
 }
 
 _success() {
-    _log "${CLR_YELLOW}SUCCESS:${CLR_NONE} ${@}"
+    _log "${CLR_GREEN}SUCCESS:${CLR_NONE} ${@}"
 }
 
 _die() {
