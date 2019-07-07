@@ -26,3 +26,22 @@ cd bootstrap-minecraft
 
 *Modify the script to your heart's content...*
  
+
+### Tips
+
+1. If you add mods (i.e. `.jar`) to `/opt/minecraft/mods` be sure to set permissions
+```
+chown minecraft:minecraft /opt/minecraft/mods/*
+```
+
+2. If you want to skip systemd and run the server manually you can
+```
+su - minecraft
+/opt/minecraft/start.sh
+```
+
+3. View process details 
+```
+systemctl status minecraftd
+ps aux | grep minecraft
+```
