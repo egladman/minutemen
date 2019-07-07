@@ -1,6 +1,6 @@
 # bootstrap-minecraft
 
-Build/Provision minecraft servers with forge mod support in seconds. 
+Build/Provision dedicated minecraft servers with forge mod support in seconds. Platform/Device agnostic; written with cloud computing in mind, however you can run it on a SBC (Single Board Computer) with no modifications. Might run like shit, but you can do it.
 
 ### Need to know
  
