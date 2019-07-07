@@ -1,5 +1,18 @@
 #!/bin/bash
 
+################################################################################
+#                                                                              #
+#                             bootstrap-minecraft                              #
+#                           Written By: Eli Gladman                            #
+#                                                                              #
+#                                                                              #
+#                                   EXAMPLE                                    #
+#                               ./bootstrap.sh                                 #
+#                                                                              #
+#                https://github.com/egladman/bootstrap-minecraft               #
+#                                                                              #
+################################################################################
+
 # MC_* denotes Minecraft or Master Chief 
 MC_INSTALL_DIR="/opt/minecraft"
 MC_MAX_HEAP_SIZE="896M" # Not some random number i pulled out of a hat: 1024-128
