@@ -146,5 +146,5 @@ _log "Starting ${MC_SYSTEMD_SERVICE_NAME}.service. This can take awhile... Go gr
 systemctl start "${MC_SYSTEMD_SERVICE_NAME}" || _die "Failed to start ${MC_SYSTEMD_SERVICE_NAME} with systemd"
 
 ip_addresses="$(hostname -I)"
-_log "Server is accessible from the following ip addresses: ${ip_addresses}"
+_success "Server is now accessible from the following ip addresses: ${ip_addresses}"
  
