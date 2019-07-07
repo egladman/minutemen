@@ -24,5 +24,5 @@ cd bootstrap-minecraft
 ./bootstrap.sh
 ```
 
-*Modify the script to your heart's content...
+*Modify the script to your heart's content...*
  
