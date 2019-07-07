@@ -37,7 +37,7 @@ CLR_YELLOW="\033[33m"
 CLR_CYAN="\033[36m"
 CLR_NONE="\033[0m"
 
-# Variables that are dynamically created later
+# Variables that are dynamically set later
 M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM=""
 M_FORGE_UNIVERSAL_JAR_PATH=""
 SYS_TOTAL_MEMORY_KB=""
