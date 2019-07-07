@@ -98,7 +98,6 @@ SYS_TOTAL_MEMORY_MB="$(( $SYS_TOTAL_MEMORY_KB / 1024 ))"
 MC_MAX_HEAP_SIZE="$(( $SYS_TOTAL_MEMORY_MB - 128 ))M" # Leave 128MB memory for the system to run properly
 
 chown -R "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"
-chmod +x "${MC_EXECUTABLE_PATH}" || _die "Failed to perform chmod on ${MC_EXECUTABLE_PATH}"
 
 su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PATH} --installServer" || {
     _die "Failed to execute ${M_FORGE_INSTALLER_JAR_PATH}"
@@ -114,6 +113,8 @@ cat << EOF > "${MC_EXECUTABLE_PATH}"
 #!/bin/bash
 java -Xmx${MC_MAX_HEAP_SIZE} -jar ${M_FORGE_UNIVERSAL_JAR_PATH}
 EOF
+
+chmod +x "${MC_EXECUTABLE_PATH}" || _die "Failed to perform chmod on ${MC_EXECUTABLE_PATH}"
 
 su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
     # When executed for the first time, the process will exit. We need to accept the EULA
