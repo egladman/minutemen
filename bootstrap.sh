@@ -17,19 +17,19 @@ M_FORGE_INSTALLER_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_INSTALLER_JAR}"
 # SYS_* denotes System
 SYS_JAVA_PATH="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
 
-
-M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM=""
-M_FORGE_UNIVERSAL_JAR_PATH=""
-M_FORGE_UNIVERSAL_JAR=""
-SYS_TOTAL_MEMORY_KB=""
-SYS_TOTAL_MEMORY_MB=""
-
 # CLR_* denotes Color
 CLR_RED="\033[0;31m"
 CLR_GREEN="\033[32m"
 CLR_YELLOW="\033[33m"
 CLR_CYAN="\033[36m"
 CLR_NONE="\033[0m"
+
+# Variables that are dynamically created later
+M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM=""
+M_FORGE_UNIVERSAL_JAR_PATH=""
+M_FORGE_UNIVERSAL_JAR=""
+SYS_TOTAL_MEMORY_KB=""
+SYS_TOTAL_MEMORY_MB=""
 
 # Helpers
 _log() {
@@ -109,6 +109,7 @@ M_FORGE_UNIVERSAL_JAR="$(cd ${MC_INSTALL_DIR}; ls ${MC_INSTALL_DIR}/forge-*.jar 
 M_FORGE_UNIVERSAL_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_UNIVERSAL_JAR}"
 
 # Create the wrapper script that systemd invokes
+_debug "Creating ${MC_EXECUTABLE_PATH}"
 cat << EOF > "${MC_EXECUTABLE_PATH}"
 #!/bin/bash
 java -Xmx${MC_MAX_HEAP_SIZE} -jar ${M_FORGE_UNIVERSAL_JAR_PATH}
@@ -122,6 +123,7 @@ su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && 
     sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify ${MC_INSTALL_DIR}/eula.txt"
 }
 
+_debug "Creating ${MC_SYSTEMD_SERVICE_PATH}"
 cat << EOF > "${MC_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
 [Unit]
 Description=minecraft server
@@ -146,5 +148,5 @@ _log "Starting ${MC_SYSTEMD_SERVICE_NAME}.service. This can take awhile... Go gr
 systemctl start "${MC_SYSTEMD_SERVICE_NAME}" || _die "Failed to start ${MC_SYSTEMD_SERVICE_NAME} with systemd"
 
 ip_addresses="$(hostname -I)"
-_success "Server is now running. Go crazy: ${ip_addresses}"
+_success "Server is now running. Go crazy ${ip_addresses}"
  
