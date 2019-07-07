@@ -6,11 +6,10 @@ MC_DOWNLOAD_SHA256SUM="942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f
 MC_VERSION="1.14.3"
 
 MC_INSTALL_DIR="/opt/minecraft"
-MC_MIN_HEAP_SIZE="1024M"
-MC_MAX_HEAP_SIZE="1920M" # You'll want to bump this up if have more ram avaialble to you 
+MC_MAX_HEAP_SIZE="896M" # Not some random number i pulled out of a hat: 1024-128
 MC_USER="minecraft" # For the love of god don't be an asshat and change to "root"
 MC_JAR_PATH="${MC_INSTALL_DIR}/server.${MC_VERSION}.jar"
-MC_EXECUTABLE_PATH="${MC_INSTALL_DIR}/run.sh"
+MC_EXECUTABLE_PATH="${MC_INSTALL_DIR}/start.sh"
 MC_SYSTEMD_SERVICE_NAME="minecraftd"
 MC_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MC_SYSTEMD_SERVICE_NAME}.service"
 
@@ -22,6 +21,8 @@ MC_DOWNLOAD_ACTUAL_SHA256SUM=""
 M_FORGE_DOWNLOAD_ACTUAL_SHA1=""
 M_FORGE_INSTALLER_JAR_PATH=""
 M_FORGE_UNIVERSAL_JAR_PATH=""
+SYS_TOTAL_MEMORY_KB=""
+SYS_TOTAL_MEMORY_MB=""
 
 RED="\033[0;31m"
 GREEN="\033[32m"
@@ -78,9 +79,13 @@ apt_dependencies=(
 )
 command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
 
+SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
+SYS_TOTAL_MEMORY_MB="$(( $SYS_TOTAL_MEMORY_KB / 1024 ))"
+MC_MAX_HEAP_SIZE="$(( $SYS_TOTAL_MEMORY_MB - 128 ))M" # Leave 128MB memory for the system to run properly
+
 cat << EOF > "${MC_EXECUTABLE_PATH}"
 #!/bin/bash
-java -Xms${MC_MIN_HEAP_SIZE} -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_JAR_PATH}
+java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_JAR_PATH}
 EOF
 
 chown -R "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"
