@@ -24,21 +24,36 @@ M_FORGE_UNIVERSAL_JAR_PATH=""
 SYS_TOTAL_MEMORY_KB=""
 SYS_TOTAL_MEMORY_MB=""
 
-RED="\033[0;31m"
-GREEN="\033[32m"
-YELLOW="\033[33m"
-CYAN="\033[36m"
-NC="\033[0m" #No color
+# CLR_* denotes Color
+CLR_RED="\033[0;31m"
+CLR_GREEN="\033[32m"
+CLR_YELLOW="\033[33m"
+CLR_CYAN="\033[36m"
+CLR_NONE="\033[0m"
 
+# Helpers
 _log() {
     echo -e ${0##*/}: "${@}" 1>&2
 }
 
+_debug() {
+    _log "${CLR_CYAN}DEBUG:${CLR_NONE} ${@}"
+}
+
+_warn() {
+    _log "${CLR_YELLOW}WARNING:${CLR_NONE} ${@}"
+}
+
+_success() {
+    _log "${CLR_YELLOW}SUCCESS:${CLR_NONE} ${@}"
+}
+
 _die() {
-    _log "${RED}FATAL:${NC} ${@}"
+    _log "${CLR_RED}FATAL:${CLR_NONE} ${@}"
     exit 1
 }
 
+# Where the magic happens
 command -v systemctl >/dev/null 2>&1 || _die "systemd not found. No other init systems are currently supported." # Sanity check
 
 if [ -d "${MC_SYSTEMD_SERVICE_PATH}" ]; then
