@@ -14,10 +14,14 @@
 ################################################################################
 
 # MC_* denotes Minecraft or Master Chief 
-MC_INSTALL_DIR="/opt/minecraft"
+MC_SERVER_UUID="$(uuidgen)" # Each server instance has its own value
+MC_PARENT_DIR="/opt/minecraft"
+MC_SERVER_INSTANCES_DIR="${MC_PARENT_DIR}/instances"
+MC_INSTALL_DIR="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}"
 MC_MAX_HEAP_SIZE="896M" # Not some random number i pulled out of a hat: 1024-128
 MC_USER="minecraft" # For the love of god don't be an asshat and change to "root"
-MC_EXECUTABLE_PATH="${MC_INSTALL_DIR}/start.sh"
+MC_EXECUTABLE_START="start.sh"
+MC_EXECUTABLE_START_PATH="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}/${MC_EXECUTABLE_START}"
 MC_SYSTEMD_SERVICE_NAME="minecraftd"
 MC_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MC_SYSTEMD_SERVICE_NAME}.service"
 
@@ -79,8 +83,8 @@ command -v apt-get >/dev/null 2>&1 && adduser --disabled-password --gecos "" "${
 
 if [ ! -d "${MC_INSTALL_DIR}" ]; then
     _log "Creating ${MC_INSTALL_DIR}"
-    mkdir -m 700 "${MC_INSTALL_DIR}" || _die "Failed to create ${MC_INSTALL_DIR} and set permissions"
-    chown "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"
+    mkdir -p -m 700 "${MC_INSTALL_DIR}" || _die "Failed to create ${MC_INSTALL_DIR} and set permissions"
+    chown -R "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"
 else
     _log "${MC_INSTALL_DIR} already exists. Proceeding with install."
 fi
@@ -120,13 +124,13 @@ _success "${M_FORGE_INSTALLER_JAR} completed!}"
 M_FORGE_UNIVERSAL_JAR_PATH="$(cd ${MC_INSTALL_DIR}; ls ${MC_INSTALL_DIR}/forge-*.jar | grep -v ${M_FORGE_INSTALLER_JAR})" #We will run into issues if multiple versions of forge are present
 
 # Create the wrapper script that systemd invokes
-_debug "Creating ${MC_EXECUTABLE_PATH}"
-cat << EOF > "${MC_EXECUTABLE_PATH}"
+_debug "Creating ${MC_EXECUTABLE_START_PATH}"
+cat << EOF > "${MC_EXECUTABLE_START_PATH}"
 #!/bin/bash
 java -Xmx${MC_MAX_HEAP_SIZE} -jar ${M_FORGE_UNIVERSAL_JAR_PATH}
 EOF
 
-chmod +x "${MC_EXECUTABLE_PATH}" || _die "Failed to perform chmod on ${MC_EXECUTABLE_PATH}"
+chmod +x "${MC_EXECUTABLE_START_PATH}" || _die "Failed to perform chmod on ${MC_EXECUTABLE_PATH}"
 
 su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
     # When executed for the first time, the process will exit. We need to accept the EULA
@@ -137,15 +141,17 @@ su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && 
 _debug "Creating ${MC_SYSTEMD_SERVICE_PATH}"
 cat << EOF > "${MC_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
 [Unit]
-Description=minecraft server
+Description=minecraft server: %i
 After=network.target
 
 [Service]
 Type=simple
 User=${MC_USER}
-WorkingDirectory=${MC_INSTALL_DIR}
-ExecStart=/bin/bash ${MC_EXECUTABLE_PATH}
+Group=${MC_USER}
+WorkingDirectory=${MC_SERVER_INSTANCES_DIR}/%i
+ExecStart=/bin/bash ${MC_SERVER_INSTANCES_DIR}/%i/${MC_EXECUTABLE_START_PATH}
 Restart=on-failure
+RestartSec=60s
 
 [Install]
 WantedBy=multi-user.target
