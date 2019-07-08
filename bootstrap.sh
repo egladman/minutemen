@@ -121,13 +121,13 @@ command -v dnf >/dev/null 2>&1 && sudo dnf update -y && sudo dnf install -y "${d
 command -v dnf >/dev/null 2>&1 && update-alternatives --list | grep "^java.*${dnf_dependencies[0]}" && {
     _debug "${dnf_dependencies[0]} is the default. Proceeding..."
 } || {
-    _die "${dnf_dependencies[0]} is not the default java. Run \"update-alternatives -show java\""
+    _die "${dnf_dependencies[0]} is not the default java. Run \"update-alternatives -show java\" for more info."
 }
 
 command -v apt-get >/dev/null 2>&1 && update-alternatives --list | grep "^java.*${apt_dependencies[0]}" && {
     _debug "${apt_dependencies[0]} is the default. Proceeding..."
 } || {
-    _die "${apt_dependencies[0]} is not the default java. Run \"update-alternatives -show java\""
+    _die "${apt_dependencies[0]} is not the default java. Run \"update-alternatives -show java\" for more info."
 }
 
 SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
