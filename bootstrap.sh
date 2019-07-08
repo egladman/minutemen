@@ -18,7 +18,7 @@ MC_SERVER_UUID="$(uuidgen)" # Each server instance has its own value
 MC_PARENT_DIR="/opt/minecraft"
 MC_SERVER_INSTANCES_DIR="${MC_PARENT_DIR}/instances"
 MC_INSTALL_DIR="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}"
-MC_MAX_HEAP_SIZE="896M" # Not some random number i pulled out of a hat: 1024-128
+MC_MAX_HEAP_SIZE="896M" # This vargets redefined later on. Not some random number i pulled out of a hat: 1024-128=896
 MC_USER="minecraft" # For the love of god don't be an asshat and change to "root"
 MC_EXECUTABLE_START="start.sh"
 MC_EXECUTABLE_START_PATH="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}/${MC_EXECUTABLE_START}"
@@ -78,8 +78,13 @@ if [ -d "${MC_SYSTEMD_SERVICE_PATH}" ]; then
 fi
 
 # Disabling passwords is traditonally frowned upon, however since the server's sole purpose is running minecraft we can relax on security.
-_log "Creating user: ${MC_USER}"
-command -v apt-get >/dev/null 2>&1 && adduser --disabled-password --gecos "" "${MC_USER}"
+command -v apt-get >/dev/null 2>&1 && adduser --disabled-password --gecos "" "${MC_USER}" || {
+    _warn "Failed to create ${MC_USER}. Does the user already exist?"
+}
+
+command -v dnf >/dev/null 2>&1 && adduser "${MC_USER}" || {
+    _warn "Failed to create ${MC_USER}. Does the user already exist?"
+}
 
 if [ ! -d "${MC_INSTALL_DIR}" ]; then
     _log "Creating ${MC_INSTALL_DIR}"
@@ -104,9 +109,19 @@ fi
 apt_dependencies=(
     "openjdk-8-jdk" # openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
 )
-command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
+command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}" || {
+    _die "Failed to run apt-get"
+}
+
+dnf_dependencies=(
+    "java-8-openjdk"
+)
+command -v apt-get >/dev/null 2>&1 && sudo dnf update -y && sudo dnf install -y "${dnf_dependencies[@]}" || {
+    _die "Failed to run dnf"
+}
 
 #Configure /usr/bin/java to point to openjdk-8 instead of openjdk-11
+_warn "If you're running this on a mult-use host this might cause issues. Tread carefully."
 update-alternatives --set java "${SYS_JAVA_PATH}" || _die "Failed to default java to openjdk-8"
 
 SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
