@@ -107,7 +107,7 @@ fi
 
 # Install Ubuntu dependencies
 apt_dependencies=(
-    "openjdk-8-jdk" # openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
+    "openjdk-8-jdk" # Must be the first index!! openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
 )
 command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
 
@@ -117,16 +117,18 @@ dnf_dependencies=(
 )
 command -v dnf >/dev/null 2>&1 && sudo dnf update -y && sudo dnf install -y "${dnf_dependencies[@]}"
 
-# This is a super ugly block of code....but it works
+# Rebinding /usr/bin/java could negatively impact other aspects of the os stack i'm NOT going to automate it.
 command -v dnf >/dev/null 2>&1 && update-alternatives --list | grep "^java.*${dnf_dependencies[0]}" && {
-    _debug "${dnf_dependencies[0]} is the default"
+    _debug "${dnf_dependencies[0]} is the default. Proceeding..."
 } || {
-    _die "${dnf_dependencies[0]} is not the default java. Run \"man update-alternatives\""
+    _die "${dnf_dependencies[0]} is not the default java. Run \"update-alternatives -show java\""
 }
 
-#Configure /usr/bin/java to point to openjdk-8 instead of openjdk-11
-_warn "If you're running this on a mult-use host this might cause issues. Tread carefully."
-command -v apt-get >/dev/null 2>&1 && update-alternatives --set java "${SYS_JAVA_PATH}"
+command -v apt-get >/dev/null 2>&1 && update-alternatives --list | grep "^java.*${apt_dependencies[0]}" && {
+    _debug "${apt_dependencies[0]} is the default. Proceeding..."
+} || {
+    _die "${apt_dependencies[0]} is not the default java. Run \"update-alternatives -show java\""
+}
 
 SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
 SYS_TOTAL_MEMORY_MB="$(( $SYS_TOTAL_MEMORY_KB / 1024 ))"
