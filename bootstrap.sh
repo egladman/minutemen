@@ -34,6 +34,9 @@ M_FORGE_INSTALLER_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_INSTALLER_JAR}"
 # SYS_* denotes System
 SYS_JAVA_PATH="/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"
 
+# MU_ * denotes Mutex
+MU_JAVA_CHECK_PASSED=1
+
 # CLR_* denotes Color
 CLR_RED="\033[0;31m"
 CLR_GREEN="\033[32m"
@@ -119,16 +122,19 @@ command -v dnf >/dev/null 2>&1 && sudo dnf update -y && sudo dnf install -y "${d
 
 # Rebinding /usr/bin/java could negatively impact other aspects of the os stack i'm NOT going to automate it.
 command -v dnf >/dev/null 2>&1 && update-alternatives --list | grep "^java.*${dnf_dependencies[0]}" && {
+    MU_JAVA_CHECK_PASSED=0
     _debug "${dnf_dependencies[0]} is the default. Proceeding..."
-} || {
-    _die "${dnf_dependencies[0]} is not the default java. Run \"update-alternatives -show java\" for more info."
 }
 
 command -v apt-get >/dev/null 2>&1 && update-alternatives --list | grep "^java.*${apt_dependencies[0]}" && {
+    MU_JAVA_CHECK_PASSED=0
     _debug "${apt_dependencies[0]} is the default. Proceeding..."
-} || {
-    _die "${apt_dependencies[0]} is not the default java. Run \"update-alternatives -show java\" for more info."
 }
+wait # Just incase the update-alternatives commands don't return fast enough...
+
+if [[ $MU_JAVA_CHECK_PASSED -ne 0 ]]; then
+    _die "openjdk 8 is NOT the default java. Run \"update-alternatives -show java\" for more info."
+fi
 
 SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
 SYS_TOTAL_MEMORY_MB="$(( $SYS_TOTAL_MEMORY_KB / 1024 ))"
