@@ -145,7 +145,7 @@ chown -R "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"
 su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PATH} --installServer" || {
     _die "Failed to execute ${M_FORGE_INSTALLER_JAR_PATH}"
 }
-_success "${M_FORGE_INSTALLER_JAR} completed!}"
+_success "${M_FORGE_INSTALLER_JAR} completed!"
 
 # the "cd" ensures we get just the basename 
 M_FORGE_UNIVERSAL_JAR_PATH="$(cd ${MC_INSTALL_DIR}; ls ${MC_INSTALL_DIR}/forge-*.jar | grep -v ${M_FORGE_INSTALLER_JAR})" #We will run into issues if multiple versions of forge are present
@@ -155,6 +155,7 @@ _debug "Creating ${MC_EXECUTABLE_START_PATH}"
 cat << EOF > "${MC_EXECUTABLE_START_PATH}"
 #!/bin/bash
 java -Xmx${MC_MAX_HEAP_SIZE} -jar ${M_FORGE_UNIVERSAL_JAR_PATH}
+
 EOF
 
 chmod +x "${MC_EXECUTABLE_START_PATH}" || _die "Failed to perform chmod on ${MC_EXECUTABLE_PATH}"
