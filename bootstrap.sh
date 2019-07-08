@@ -79,11 +79,11 @@ fi
 
 # Disabling passwords is traditonally frowned upon, however since the server's sole purpose is running minecraft we can relax on security.
 command -v apt-get >/dev/null 2>&1 && adduser --disabled-password --gecos "" "${MC_USER}" || {
-    _warn "Failed to create ${MC_USER}. Does the user already exist?"
+    _warn "Failed to create user: ${MC_USER}. Does the user already exist?"
 }
 
 command -v dnf >/dev/null 2>&1 && adduser "${MC_USER}" || {
-    _warn "Failed to create ${MC_USER}. Does the user already exist?"
+    _warn "Failed to create user: ${MC_USER}. Does the user already exist?"
 }
 
 if [ ! -d "${MC_INSTALL_DIR}" ]; then
@@ -109,20 +109,24 @@ fi
 apt_dependencies=(
     "openjdk-8-jdk" # openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
 )
-command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}" || {
-    _die "Failed to run apt-get"
-}
+command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
 
+# Install Fedora dependencies
 dnf_dependencies=(
-    "java-8-openjdk"
+    "java-1.8.0-openjdk" # Must be the first index!!
 )
-command -v apt-get >/dev/null 2>&1 && sudo dnf update -y && sudo dnf install -y "${dnf_dependencies[@]}" || {
-    _die "Failed to run dnf"
+command -v dnf >/dev/null 2>&1 && sudo dnf update -y && sudo dnf install -y "${dnf_dependencies[@]}"
+
+# This is a super ugly block of code....but it works
+command -v dnf >/dev/null 2>&1 && update-alternatives --list | grep "^java.*${dnf_dependencies[0]}" && {
+    _debug "${dnf_dependencies[0]} is the default"
+} || {
+    _die "${dnf_dependencies[0]} is not the default java. Run \"man update-alternatives\""
 }
 
 #Configure /usr/bin/java to point to openjdk-8 instead of openjdk-11
 _warn "If you're running this on a mult-use host this might cause issues. Tread carefully."
-update-alternatives --set java "${SYS_JAVA_PATH}" || _die "Failed to default java to openjdk-8"
+command -v apt-get >/dev/null 2>&1 && update-alternatives --set java "${SYS_JAVA_PATH}"
 
 SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
 SYS_TOTAL_MEMORY_MB="$(( $SYS_TOTAL_MEMORY_KB / 1024 ))"
