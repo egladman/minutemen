@@ -4,7 +4,7 @@ Build/Provision dedicated minecraft servers with forge mod support in seconds. P
 
 ### Need to know
  
-- Currently only supports `ubuntu` and its derivatives. Planning to support Fedora in the near future. 
+- Supports `Fedora` and `Ubuntu`.
 
 
 ### Quick and Dirty
