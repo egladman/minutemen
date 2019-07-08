@@ -149,7 +149,7 @@ Type=simple
 User=${MC_USER}
 Group=${MC_USER}
 WorkingDirectory=${MC_SERVER_INSTANCES_DIR}/%i
-ExecStart=/bin/bash ${MC_SERVER_INSTANCES_DIR}/%i/${MC_EXECUTABLE_START_PATH}
+ExecStart=/bin/bash ${MC_SERVER_INSTANCES_DIR}/%i/${MC_EXECUTABLE_START}
 Restart=on-failure
 RestartSec=60s
 
