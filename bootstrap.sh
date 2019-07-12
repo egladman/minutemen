@@ -18,6 +18,8 @@ MC_SERVER_UUID="$(uuidgen)" # Each server instance has its own value
 MC_PARENT_DIR="/opt/minecraft"
 MC_SERVER_INSTANCES_DIR="${MC_PARENT_DIR}/instances"
 MC_BIN_DIR="${MC_PARENT_DIR}/bin"
+MC_LOG_DIR="${MC_PARENT_DIR}/log"
+MC_LOG_INSTANCE_DIR="${MC_LOG_DIR}/${MC_SERVER_UUID}"
 MC_CACHE_DIR="${MC_PARENT_DIR}/.downloads"
 MC_INSTALL_DIR="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}"
 MC_MAX_HEAP_SIZE="896M" # This vargets redefined later on. Not some random number i pulled out of a hat: 1024-128=896
@@ -34,6 +36,8 @@ M_FORGE_INSTALLER_JAR="$(basename ${M_FORGE_DOWNLOAD_URL})"
 M_FORGE_INSTALLER_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_INSTALLER_JAR}"
 
 # SYS_* denotes System
+SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
+SYS_TOTAL_MEMORY_MB="$(( $SYS_TOTAL_MEMORY_KB / 1024 ))"
 
 # MU_ * denotes Mutex
 MU_JAVA_CHECK_PASSED=1
@@ -49,12 +53,11 @@ CLR_NONE="\033[0m"
 
 # FL_ * denotes Flag
 FL_VERBOSE=1
+FL_DISABLE_SYSTEMD_START=1
 
 # Variables that are dynamically set later
 M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM=""
 M_FORGE_UNIVERSAL_JAR_PATH=""
-SYS_TOTAL_MEMORY_KB=""
-SYS_TOTAL_MEMORY_MB=""
 
 # Helpers
 _log() {
@@ -80,22 +83,62 @@ _die() {
     exit 1
 }
 
+_init_dir() {
+    # I'm making a lot assumptions:
+    # - All files in MC_PARENT_DIR should have the same owner:group
+    # - The first argument passed in is the parent directory of all subsequent directories passed in
+
+    # TODO: Add safety check to validate directory hierarchy
+
+    TARGET_USER="${1}"
+
+    local ARG
+    IFS=' ' read -r -a ARG <<< "${2}"
+    TARGET_DIR="${ARG[0]}"
+
+    _debug "Checking for directory: ${TARGET_DIR}"
+    if [ ! -d "${TARGET_DIR}" ]; then
+        mkdir -p "${ARG[@]}" || _die "Failed to create ${ARG[@]} and set permissions"
+	chown -R "${TARGET_USER}":"${TARGET_USER}" "${TARGET_DIR}" || {
+	    _die "Failed to perform chown on the following dir(s): ${ARG[@]}"
+        }
+        if [ -n "${ARG[1]}" ]; then # Be ashamed for writing such a shitty block of code
+            chown -R "${TARGET_USER}":"${TARGET_USER}" "${MC_PARENT_DIR}"
+	fi
+    else
+        _log "Directory: ${TARGET_DIR} already exists. Proceeding with install..."
+    fi
+}
+
+_run() {
+    local CMD="${@}"
+    su - "${MC_USER}" -c "${CMD}"
+}
+
+_if_installed() {
+    local PROGRAM="${1}"
+    command -v "${PROGRAM}" >/dev/null 2>&1
+}
+
 _usage() {
 cat << EOF
-${0##*/} [-h] [-v] [-c string] [-t string] -- Build/Provision Minecraft Servers with ForgeMods Support
+${0##*/} [-h] [-v] [-s] -- minutemen -- Build/Provision Minecraft Servers with ForgeMods Support in under 60 seconds
 where:
     -h  show this help text
     -v  verbose
+    -s  disable systemd start/enable
 EOF
 }
 
-while getopts ':h :v' option; do
+while getopts ':h :v :s' option; do
     case "${option}" in
         h|\?) _usage
            exit 0
            ;;
         v) FL_VERBOSE=0
            ;;
+	s) FL_DISABLE_SYSTEMD_START=0
+	   ;;
         :) printf "missing argument for -%s\n" "${OPTARG}"
            _usage
            exit 1
@@ -105,7 +148,10 @@ done
 shift $((OPTIND - 1))
 
 # Where the magic happens
-command -v systemctl >/dev/null 2>&1 || _die "systemd not found. No other init systems are currently supported." # Sanity check
+
+umask 003 #ug=rwx,o=r
+
+_if_installed systemctl || _die "systemd not found. No other init systems are currently supported." # Sanity check
 
 if [ -d "${MC_SYSTEMD_SERVICE_PATH}" ]; then
     _debug "Attempting to stop ${MC_SYSTEMD_SERVICE_NAME}.service"
@@ -137,16 +183,8 @@ id -u "${MC_USER}" >/dev/null 2>&1 && _debug "User: ${MC_USER} found." || {
     fi
 }
 
-_debug "Checking for directory: ${MC_INSTALL_DIR}"
-if [ ! -d "${MC_INSTALL_DIR}" ]; then
-    _debug "Creating directory: ${MC_INSTALL_DIR}"
-    mkdir -p -m 700 "${MC_INSTALL_DIR}" "${MC_BIN_DIR}" "${MC_CACHE_DIR}" || {
-        _die "Failed to create ${MC_INSTALL_DIR} and set permissions"
-    }
-    chown -R "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"
-else
-    _log "Directory: ${MC_INSTALL_DIR} already exists. Proceeding with install."
-fi
+_init_dir "${MC_USER}" "${MC_PARENT_DIR}"
+_init_dir "${MC_USER}" "${MC_INSTALL_DIR} ${MC_BIN_DIR} ${MC_CACHE_DIR} ${MC_LOG_INSTANCE_DIR}"
 
 if [[ ${MU_FORGE_DOWNLOAD_CACHED} -eq 0 ]]; then
     _debug "Copying ${MC_CACHE_DIR}/${M_FORGE_INSTALLER_JAR} to ${MC_INSTALL_DIR}/"
@@ -156,6 +194,9 @@ if [[ ${MU_FORGE_DOWNLOAD_CACHED} -eq 0 ]]; then
 else
     _debug "Downloading ${M_FORGE_INSTALLER_JAR}"
     wget "${M_FORGE_DOWNLOAD_URL}" -P "${MC_INSTALL_DIR}" || _die "Failed to fetch ${M_FORGE_DOWNLOAD_URL}"
+    chown "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"/"${M_FORGE_INSTALLER_JAR}" || {
+        _die "Failed to perform chown on ${MC_INSTALL_DIR}/${M_FORGE_INSTALLER_JAR}"
+    }
 fi
 
 # Validate file download integrity
@@ -170,21 +211,21 @@ fi
 apt_dependencies=(
     "openjdk-8-jdk" # Must be the first index!! openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
 )
-command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
+_if_installed apt-get && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
 
 # Install Fedora dependencies
 dnf_dependencies=(
     "java-1.8.0-openjdk" # Must be the first index!!
 )
-command -v dnf >/dev/null 2>&1 && sudo dnf update -y && sudo dnf install -y "${dnf_dependencies[@]}"
+_if_installed dnf && sudo dnf update -y && sudo dnf install -y "${dnf_dependencies[@]}"
 
 # Rebinding /usr/bin/java could negatively impact other aspects of the os stack i'm NOT going to automate it.
-command -v dnf >/dev/null 2>&1 && update-alternatives --list | grep "^java.*${dnf_dependencies[0]}" && {
+_if_installed dnf && update-alternatives --list | grep "^java.*${dnf_dependencies[0]}" && {
     MU_JAVA_CHECK_PASSED=0
     _debug "${dnf_dependencies[0]} is the default. Proceeding..."
 }
 
-command -v apt-get >/dev/null 2>&1 && update-alternatives --list | grep "^java.*${apt_dependencies[0]}" && {
+_if_installed apt-get && update-alternatives --list | grep "^java.*${apt_dependencies[0]}" && {
     MU_JAVA_CHECK_PASSED=0
     _debug "${apt_dependencies[0]} is the default. Proceeding..."
 }
@@ -194,43 +235,54 @@ if [[ $MU_JAVA_CHECK_PASSED -ne 0 ]]; then
     _die "openjdk 8 is NOT the default java. Run \"update-alternatives -show java\" for more info."
 fi
 
-SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
-SYS_TOTAL_MEMORY_MB="$(( $SYS_TOTAL_MEMORY_KB / 1024 ))"
-MC_MAX_HEAP_SIZE="$(( $SYS_TOTAL_MEMORY_MB - 128 ))M" # Leave 128MB memory for the system to run properly
+M_FORGE_INSTALLER_LOG="${MC_LOG_INSTANCE_DIR}/${M_FORGE_INSTALLER_JAR}.out"
+_debug "Logging ${M_FORGE_INSTALLER_JAR} installation to ${M_FORGE_INSTALLER_LOG}"
 
-chown -R "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"
+_run "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PATH} --installServer | tee ${M_FORGE_INSTALLER_LOG}" && {
+    chown "${MC_USER}":"${MC_USER}" "${MC_INSTALL_DIR}"/* || {
+        _die "Failed to perform chown on ${MC_INSTALL_DIR}/*"
+    }
 
-su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PATH} --installServer" && {
     _debug "Deleting ${M_FORGE_INSTALLER_JAR_PATH}"
     rm "${M_FORGE_INSTALLER_JAR_PATH}" || _warn "Failed to delete ${M_FORGE_INSTALLER_JAR_PATH}"
 } || {
     _die "Failed to execute ${M_FORGE_INSTALLER_JAR_PATH}"
 }
-_success "${M_FORGE_INSTALLER_JAR} completed!"
+
+_success "${M_FORGE_INSTALLER_JAR} returned code 0. Proceeding..."
 
 # the "cd" ensures we get just the basename 
 M_FORGE_UNIVERSAL_JAR_PATH="$(cd ${MC_INSTALL_DIR}; ls ${MC_INSTALL_DIR}/forge-*.jar | grep -v ${M_FORGE_INSTALLER_JAR})"
 M_FORGE_UNIVERSAL_JAR="$(basename ${M_FORGE_UNIVERSAL_JAR_PATH})"
 
-read -r -d '' MC_EXECUTABLE_START_CONTENTS <<'EOF'
+MC_MAX_HEAP_SIZE="$(( $SYS_TOTAL_MEMORY_MB - 128 ))M" # Leave 128MB memory for the system to run properly
+
+read -r -d '' MC_EXECUTABLE_START_CONTENTS << EOF
 #!/bin/bash
 # ${MC_EXECUTABLE_START_PATH} Generated by ${MC_SYSTEMD_SERVICE_NAME}
+
+if [ -z "\$1" ]; then
+    echo "MC_SERVER_UUID argument required." && exit 1
+fi
 
 java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_SERVER_INSTANCES_DIR}/\$1/${M_FORGE_UNIVERSAL_JAR}
 EOF
 
-_debug "Checking for ${MC_EXECUTABLE_START_PATH}"
-if [ ! -f "${MC_EXECUTABLE_START_PATH}" ]; then
-    # Create the wrapper script that systemd invokes
+_debug "Checking for file: ${MC_EXECUTABLE_START_PATH}"
+if [ ! -f "${MC_EXECUTABLE_START_PATH}" ]; then # Create the wrapper script that systemd invokes
     _debug "Creating ${MC_EXECUTABLE_START_PATH}"
     echo "${MC_EXECUTABLE_START_CONTENTS}" > "${MC_EXECUTABLE_START_PATH}" || _die "Failed to create ${MC_EXECUTABLE_START_PATH}"
+
+    chown "${MC_USER}":"${MC_USER}" "${MC_EXECUTABLE_START_PATH}" || _die "Failed to perform chown on ${MC_EXECUTABLE_PATH}"
     chmod +x "${MC_EXECUTABLE_START_PATH}" || _die "Failed to perform chmod on ${MC_EXECUTABLE_PATH}"
+else
+    _debug "File: ${MC_EXECUTABLE_START_PATH} found. Skipping configuration step..."
 fi
 
-su - "${MC_USER}" -c "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
+_run "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
     # When executed for the first time, the process will exit. We need to accept the EULA
     _debug "Accepting end user license agreement"
-    sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify \"${MC_INSTALL_DIR}/eula.txt\". Did ${M_FORGE_UNIVERSAL_JAR} return exit code 0?"
+    sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify \"${MC_INSTALL_DIR}/eula.txt\". ${M_FORGE_UNIVERSAL_JAR} failed most likely."
 } || _die "Failed to execute ${MC_EXECUTABLE_PATH} for the first time."
 
 _debug "Creating ${MC_SYSTEMD_SERVICE_PATH}"
@@ -253,12 +305,18 @@ WantedBy=multi-user.target
 
 EOF
 
-_log "Configuring systemd to automatically start ${MC_SYSTEMD_SERVICE_NAME}.service on boot"
-systemctl enable "${MC_SYSTEMD_SERVICE_NAME}" || _die "Failed to permanently enable ${MC_SYSTEMD_SERVICE_NAME} with systemd"
+if [ "${FL_DISABLE_SYSTEMD_START}" -eq 0 ]; then
+    _log "Configuring systemd to automatically start ${MC_SYSTEMD_SERVICE_NAME}.service on boot"
+    systemctl enable "${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID}" || {
+        _die "Failed to permanently enable ${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID} with systemd"
+    }
 
-_log "Starting ${MC_SYSTEMD_SERVICE_NAME}.service. This can take awhile... Go grab some popcorn."
-systemctl start "${MC_SYSTEMD_SERVICE_NAME}" || _die "Failed to start ${MC_SYSTEMD_SERVICE_NAME} with systemd"
+    _log "Starting ${MC_SYSTEMD_SERVICE_NAME}.service. This can take awhile... Go grab some popcorn."
+    systemctl start "${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID}" || {
+        _die "Failed to start ${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID} with systemd"
+    }
 
-ip_addresses="$(hostname -I)"
-_success "Server is now running. Go crazy ${ip_addresses}"
+    ip_addresses="$(hostname -I)"
+    _success "Server is now running. Go crazy ${ip_addresses}"
+fi
  
