@@ -13,6 +13,9 @@
 #                                                                              #
 ################################################################################
 
+# The following can be optionally passed in as environment variables
+# - MC_USER_PASSWORD_HASH
+
 # MC_* denotes Minecraft or Master Chief 
 MC_SERVER_UUID="$(uuidgen)" # Each server instance has its own value
 MC_PARENT_DIR="/opt/minecraft"
@@ -168,16 +171,27 @@ fi
 _debug "Checking for user: ${MC_USER}"
 id -u "${MC_USER}" >/dev/null 2>&1 && _debug "User: ${MC_USER} found." || {
     _debug "User: ${MC_USER} not found. Creating..."
-    # Disabling passwords is traditonally frowned upon, however since the host
-    # isn't intended for multi-purpose use we're going to relax...
-    command -v apt-get >/dev/null 2>&1 && adduser --disabled-password --gecos "" "${MC_USER}" >/dev/null 2>&1 && {
-        MU_USER_CHECK_PASSED=0
-    }
 
-    command -v dnf >/dev/null 2>&1 && adduser "${MC_USER}" >/dev/null 2>&1 && {
-        MU_USER_CHECK_PASSED=0
-    }
-    wait # This is going to bite me in the ass one day...
+    if [ -n "${MC_USER_PASSWORD_HASH}" ]; then
+	_debug "Setting password for ${MC_USER}"
+
+	_if_installed apt-get && adduser --password "${MC_USER_PASSWORD_HASH}" --gecos "" "${MC_USER}" >/dev/null 2>&1 && {
+            MU_USER_CHECK_PASSED=0
+        }
+        _if_installed dnf && adduser --password "${MC_USER_PASSWORD_HASH}" "${MC_USER}" >/dev/null 2>&1 && {
+            MU_USER_CHECK_PASSED=0
+        }
+    else # No password will be set
+        _warn "No password will be set for ${MC_USER}"
+
+	_if_installed apt-get && adduser --disabled-password --gecos "" "${MC_USER}" >/dev/null 2>&1 && {
+            MU_USER_CHECK_PASSED=0
+        }
+        _if_installed dnf && adduser "${MC_USER}" >/dev/null 2>&1 && {
+            MU_USER_CHECK_PASSED=0
+        }
+    fi
+    wait && MC_USER_PASSWORD_HASH="" # Clear environment variable just in cases...
 
     if [[ $MU_USER_CHECK_PASSED -ne 0 ]]; then
         _die "Failed to run \"adduser ${MC_USER}\". Does the user already exist?"
@@ -230,7 +244,7 @@ _if_installed apt-get && update-alternatives --list | grep "^java.*${apt_depende
     MU_JAVA_CHECK_PASSED=0
     _debug "${apt_dependencies[0]} is the default. Proceeding..."
 }
-wait # Just incase the update-alternatives commands don't return fast enough...
+wait # On child processes to complete...
 
 if [[ $MU_JAVA_CHECK_PASSED -ne 0 ]]; then
     _die "openjdk 8 is NOT the default java. Run \"update-alternatives -show java\" for more info."
@@ -288,7 +302,10 @@ _run "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
 
 # Install mods if present...
 for mod in "${MC_MODS_CACHE_DIR}"/*.jar; do
-    test -f "$mod" && cp "${mod}" "${MC_INSTALL_DIR}/mods/"
+    test -f "$mod" && {
+	_debug "Installing mod ${mod}"
+        cp "${mod}" "${MC_INSTALL_DIR}/mods/"
+    }
 done
 
 _debug "Creating ${MC_SYSTEMD_SERVICE_PATH}"
