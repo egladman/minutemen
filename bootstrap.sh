@@ -20,7 +20,8 @@ MC_SERVER_INSTANCES_DIR="${MC_PARENT_DIR}/instances"
 MC_BIN_DIR="${MC_PARENT_DIR}/bin"
 MC_LOG_DIR="${MC_PARENT_DIR}/log"
 MC_LOG_INSTANCE_DIR="${MC_LOG_DIR}/${MC_SERVER_UUID}"
-MC_CACHE_DIR="${MC_PARENT_DIR}/.downloads"
+MC_DOWNLOADS_CACHE_DIR="${MC_PARENT_DIR}/.downloads"
+MC_MODS_CACHE_DIR="${MC_PARENT_DIR}/.mods"
 MC_INSTALL_DIR="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}"
 MC_MAX_HEAP_SIZE="896M" # This vargets redefined later on. Not some random number i pulled out of a hat: 1024-128=896
 MC_USER="minecraft" # For the love of god don't be an asshat and change to "root"
@@ -159,7 +160,7 @@ if [ -d "${MC_SYSTEMD_SERVICE_PATH}" ]; then
     systemctl stop "${MC_SYSTEMD_SERVICE_NAME}" || _log "${MC_SYSTEMD_SERVICE_NAME}.service not running..."
 fi
 
-if [ -f "${MC_CACHE_DIR}/${M_FORGE_INSTALLER_JAR}" ]; then
+if [ -f "${MC_DOWNLOADS_CACHE_DIR}/${M_FORGE_INSTALLER_JAR}" ]; then
     _debug "Cached ${M_FORGE_INSTALLER_JAR} found."
     MU_FORGE_DOWNLOAD_CACHED=0
 fi
@@ -187,9 +188,9 @@ _init_dir "${MC_USER}" "${MC_PARENT_DIR}"
 _init_dir "${MC_USER}" "${MC_INSTALL_DIR} ${MC_BIN_DIR} ${MC_CACHE_DIR} ${MC_LOG_INSTANCE_DIR}"
 
 if [[ ${MU_FORGE_DOWNLOAD_CACHED} -eq 0 ]]; then
-    _debug "Copying ${MC_CACHE_DIR}/${M_FORGE_INSTALLER_JAR} to ${MC_INSTALL_DIR}/"
-    cp "${MC_CACHE_DIR}/${M_FORGE_INSTALLER_JAR}" "${MC_INSTALL_DIR}/" || {
-        _die "Failed to copy ${MC_CACHE_DIR}/${M_FORGE_INSTALLER_JAR} to ${MC_INSTALL_DIR}/"
+    _debug "Copying ${MC_DOWNLOADS_CACHE_DIR}/${M_FORGE_INSTALLER_JAR} to ${MC_INSTALL_DIR}/"
+    cp "${MC_DOWNLOADS_CACHE_DIR}/${M_FORGE_INSTALLER_JAR}" "${MC_INSTALL_DIR}/" || {
+        _die "Failed to copy ${MC_DOWNLOADS_CACHE_DIR}/${M_FORGE_INSTALLER_JAR} to ${MC_INSTALL_DIR}/"
     }
 else
     _debug "Downloading ${M_FORGE_INSTALLER_JAR}"
@@ -284,6 +285,11 @@ _run "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
     _debug "Accepting end user license agreement"
     sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify \"${MC_INSTALL_DIR}/eula.txt\". ${M_FORGE_UNIVERSAL_JAR} failed most likely."
 } || _die "Failed to execute ${MC_EXECUTABLE_PATH} for the first time."
+
+# Install mods if present...
+for mod in "${MC_MODS_CACHE_DIR}"/*.jar; do
+    test -f "$mod" && cp "${mod}" "${MC_INSTALL_DIR}/mods/"
+done
 
 _debug "Creating ${MC_SYSTEMD_SERVICE_PATH}"
 cat << EOF > "${MC_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"

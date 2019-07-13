@@ -1,4 +1,4 @@
-# bootstrap-minecraft
+# [minutemen](https://github.com/egladman/minutemen)
 
 Build/Provision dedicated minecraft servers with forge mod support in seconds. Platform/Device agnostic; written with cloud computing in mind, however you can run it on a SBC (Single Board Computer) with no modifications. Might run like shit, but you can do it.
 
@@ -12,15 +12,15 @@ Build/Provision dedicated minecraft servers with forge mod support in seconds. P
 > curl | bash is indefensible. Just because the transport is over HTTPS doesn't guarantee the content hasn't been maliciously modified on the server. It also doesn't guarantee that you won't receive a partial download that happens to stop at some inopportune time. 
 
 ```
-curl https://raw.githubusercontent.com/egladman/bootstrap-minecraft/master/bootstrap.sh | bash
+curl https://raw.githubusercontent.com/egladman/minutemen/master/bootstrap.sh | bash
 ```
 
 
 ### The Proper Way
 
 ```
-git clone git@github.com:egladman/bootstrap-minecraft.git
-cd bootstrap-minecraft
+git clone git@github.com:egladman/minutemen.git
+cd minutemen
 ./bootstrap.sh
 ```
 
@@ -31,23 +31,23 @@ cd bootstrap-minecraft
 
 1. If you add mods (i.e. `.jar`) to `/opt/minecraft/mods` be sure to set permissions
 ```
-chown minecraft:minecraft /opt/minecraft/mods/*
+chown minecraft:minecraft /opt/minecraft/<uuid>/mods/*
 ```
 
 2. If you want to skip systemd and run the server manually you can
 ```
 su - minecraft
-/opt/minecraft/start.sh
+/opt/minecraft/bin/start
 ```
 
 3. View process details 
 ```
-systemctl status minecraftd
+systemctl status minutemen
 ps aux | grep minecraft
 ```
 
 4. View logs that would typically be printed to stdout
 ```
-journalctl -u minecraftd.service
+journalctl -u minutemen.service
 ```
  
