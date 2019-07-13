@@ -1,6 +1,6 @@
 # [minutemen](https://github.com/egladman/minutemen)
 
-Build/Provision dedicated minecraft servers with forge mod support in seconds. Platform/Device agnostic; written with cloud computing in mind, however you can run it on a SBC (Single Board Computer) with no modifications. Might run like shit, but you can do it.
+Build/Provision dedicated minecraft servers with forge mod support in seconds. Platform/Device agnostic; written with cloud computing in mind, however you can just as easily run this on a SBC (Single Board Computer) with no modifications. It might run like shit, but hey...you can do it.
 
 ### Need to know
  
@@ -21,7 +21,7 @@ curl https://raw.githubusercontent.com/egladman/minutemen/master/bootstrap.sh | 
 ```
 git clone git@github.com:egladman/minutemen.git
 cd minutemen
-./bootstrap.sh
+./bootstrap.sh -v
 ```
 
 *Modify the script to your heart's content...*
@@ -29,29 +29,39 @@ cd minutemen
 
 ### Tips
 
-1. If you add mods (i.e. `.jar`) to `/opt/minecraft/mods` be sure to set permissions
+1. Run the help utility for more info
+```
+./bootstrap.sh -h
+```
+
+2. If you add mods (i.e. `.jar`) to `/opt/minecraft/mods` be sure to set permissions
 ```
 chown minecraft:minecraft /opt/minecraft/<uuid>/mods/*
 ```
 
-2. Mods placed in `/opt/minecraft/.mods` will be automatically installed
+3. Mods placed in `/opt/minecraft/.mods` will be automatically installed
 
-3. If you're running multiple builds place the forge installer jar in `/opt/minecraft/.downloads` to reduce network activity
+4. If you're running multiple builds place the forge installer jar in `/opt/minecraft/.downloads` to reduce network activity
 
-4. If you want to skip systemd and run the server manually you can
+5. If you want to skip systemd and run the server manually you can
 ```
 su - minecraft
 /opt/minecraft/bin/start
 ```
 
-5. View process details 
+6. View process details
 ```
 systemctl status minutemen@<uuid>
 ps aux | grep minecraft
 ```
 
-6. View logs that would typically be printed to stdout
+7. View logs that would typically be printed to stdout
 ```
-journalctl -u minutemen.service
+journalctl -u minutemen@<uuid>.service
+```
+
+8. Set password for user: `minecraft`
+```
+MC_USER_PASSWORD_HASH="" ./bootstrap.sh
 ```
  
