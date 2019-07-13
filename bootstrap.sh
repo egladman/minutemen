@@ -9,7 +9,7 @@
 #                                   EXAMPLE                                    #
 #                               ./bootstrap.sh                                 #
 #                                                                              #
-#                https://github.com/egladman/bootstrap-minecraft               #
+#                   https://github.com/egladman/minutemen                      #
 #                                                                              #
 ################################################################################
 
