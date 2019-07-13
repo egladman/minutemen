@@ -26,8 +26,12 @@ MC_LOG_INSTANCE_DIR="${MC_LOG_DIR}/${MC_SERVER_UUID}"
 MC_DOWNLOADS_CACHE_DIR="${MC_PARENT_DIR}/.downloads"
 MC_MODS_CACHE_DIR="${MC_PARENT_DIR}/.mods"
 MC_INSTALL_DIR="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}"
-MC_MAX_HEAP_SIZE="896M" # This vargets redefined later on. Not some random number i pulled out of a hat: 1024-128=896
+MC_MAX_HEAP_SIZE="896M" # This variable gets redefined later on. Not some random number i pulled out of a hat: 1024-128=896
 MC_USER="minecraft" # For the love of god don't be an asshat and change to "root"
+
+MC_SERVER_MAX_CONCURRENT_INSTANCES=16 # Realistically I never see myself running more than 4 instances simultaneously...
+MC_SERVER_PORT_RANGE_START=25565 # Default minecraft port
+MC_SERVER_PORT_RANGE_END=$((${MC_SERVER_PORT_RANGE_START} + ${MC_SERVER_MAX_CONCURRENT_INSTANCES} ))
 
 MC_EXECUTABLE_START="start"
 MC_EXECUTABLE_START_PATH="${MC_PARENT_DIR}/bin/${MC_EXECUTABLE_START}"
@@ -66,6 +70,7 @@ FL_DISABLE_SYSTEMD_START=1
 # Variables that are dynamically set later
 M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM=""
 M_FORGE_UNIVERSAL_JAR_PATH=""
+MC_SERVER_PORT_SELECTED=""
 
 # Helpers
 _log() {
@@ -250,7 +255,7 @@ _if_installed apt-get && update-alternatives --list | grep "^java.*${apt_depende
     MU_JAVA_CHECK_PASSED=0
     _debug "${apt_dependencies[0]} is the default. Proceeding..."
 }
-wait # On child processes to complete...
+wait # On update-alternatives child processes to complete...
 
 if [[ $MU_JAVA_CHECK_PASSED -ne 0 ]]; then
     _die "openjdk 8 is NOT the default java. Run \"update-alternatives -show java\" for more info."
@@ -330,6 +335,27 @@ for mod in "${MC_MODS_CACHE_DIR}"/*.jar; do
         cp "${mod}" "${MC_INSTALL_DIR}/mods/"
     }
 done
+
+# What port should we run the instance on? 
+for p in {${MC_SERVER_PORT_RANGE_START}..${MC_SERVER_PORT_RANGE_END}}; do 
+    echo $p
+
+    if [ lsof -Pi :"${p}" -sTCP:LISTEN -t >/dev/null ]; then
+       _debug "Port ${p} is already in use. Skipping..."
+       continue
+    else
+       _debug "Port ${p} not in use. Selecting..."
+       MC_SERVER_PORT_SELECTED="${p}"
+       break
+    fi
+done
+
+if [ -z "${MC_SERVER_PORT_SELECTED}" ]; then
+    # I'm making a broad assumption that only minecraft is using the above port range
+    _die "JFC you have ${MC_SERVER_MAX_CONCURRENT_INSTANCES} instances running. No ports available..."
+fi
+
+# TODO: Update server.properties with the new port
 
 _debug "Creating ${MC_SYSTEMD_SERVICE_PATH}"
 cat << EOF > "${MC_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
