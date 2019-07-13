@@ -34,19 +34,23 @@ cd minutemen
 chown minecraft:minecraft /opt/minecraft/<uuid>/mods/*
 ```
 
-2. If you want to skip systemd and run the server manually you can
+2. Mods placed in `/opt/minecraft/.mods` will be automatically installed
+
+3. If you're running multiple builds place the forge installer jar in `/opt/minecraft/.downloads` to reduce network activity
+
+4. If you want to skip systemd and run the server manually you can
 ```
 su - minecraft
 /opt/minecraft/bin/start
 ```
 
-3. View process details 
+5. View process details 
 ```
-systemctl status minutemen
+systemctl status minutemen@<uuid>
 ps aux | grep minecraft
 ```
 
-4. View logs that would typically be printed to stdout
+6. View logs that would typically be printed to stdout
 ```
 journalctl -u minutemen.service
 ```
