@@ -237,13 +237,13 @@ fi
 apt_dependencies=(
     "openjdk-8-jdk" # Must be the first index!! openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
 )
-_if_installed apt-get && sudo apt-get update -y && sudo apt-get install -y "${apt_dependencies[@]}"
+_if_installed apt-get && apt-get update -y && apt-get install -y "${apt_dependencies[@]}"
 
 # Install Fedora dependencies
 dnf_dependencies=(
     "java-1.8.0-openjdk" # Must be the first index!!
 )
-_if_installed dnf && sudo dnf update -y && sudo dnf install -y "${dnf_dependencies[@]}"
+_if_installed dnf && dnf update -y && dnf install -y "${dnf_dependencies[@]}"
 
 # Rebinding /usr/bin/java could negatively impact other aspects of the os stack i'm NOT going to automate it.
 _if_installed dnf && update-alternatives --list | grep "^java.*${dnf_dependencies[0]}" && {
