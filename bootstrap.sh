@@ -31,7 +31,7 @@ MC_USER="minecraft" # For the love of god don't be an asshat and change to "root
 
 MC_SERVER_MAX_CONCURRENT_INSTANCES=16 # Realistically I never see myself running more than 4 instances simultaneously...
 MC_SERVER_PORT_RANGE_START=25565 # Default minecraft port
-MC_SERVER_PORT_RANGE_END=$((${MC_SERVER_PORT_RANGE_START} + ${MC_SERVER_MAX_CONCURRENT_INSTANCES} ))
+MC_SERVER_PORT_RANGE_END=$(( ${MC_SERVER_PORT_RANGE_START} + ${MC_SERVER_MAX_CONCURRENT_INSTANCES} ))
 
 MC_EXECUTABLE_START="start"
 MC_EXECUTABLE_START_PATH="${MC_PARENT_DIR}/bin/${MC_EXECUTABLE_START}"
