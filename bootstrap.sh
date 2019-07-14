@@ -317,6 +317,7 @@ java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_SERVER_INSTANCES_DIR}/\${1}/${M_FORGE_UNI
 EOF
 
 # We want these files updated each time the script gets run
+_debug "Updating files in ${MC_BIN_DIR}"
 echo "${MC_EXECUTABLE_START_CONTENTS}" > "${MC_EXECUTABLE_START_PATH}" || _die "Failed to create ${MC_EXECUTABLE_SEND_PATH}"
 echo "${MC_EXECUTABLE_SEND_CONTENTS}" > "${MC_EXECUTABLE_SEND_PATH}" || _die "Failed to create ${MC_EXECUTABLE_SEND_PATH}"
 chown "${MC_USER}":"${MC_USER}" "${MC_BIN_DIR}/*" || _die "Failed to perform chown on ${MC_BIN_DIR}/*"
@@ -331,30 +332,31 @@ _run "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
 # Install mods if present...
 for mod in "${MC_MODS_CACHE_DIR}"/*.jar; do
     test -f "$mod" && {
-	_debug "Installing mod ${mod}"
+	_debug "Installing mod ${mod} to ${MC_INSTALL_DIR}/mods/${mod}"
         cp "${mod}" "${MC_INSTALL_DIR}/mods/"
     }
 done
 
-# What port should we run the instance on? 
-for p in {${MC_SERVER_PORT_RANGE_START}..${MC_SERVER_PORT_RANGE_END}}; do 
-    echo $p
-
-    if [ lsof -Pi :"${p}" -sTCP:LISTEN -t >/dev/null ]; then
-       _debug "Port ${p} is already in use. Skipping..."
+# What port should we run the instance on?
+_debug "Determining port..."
+for port in {${MC_SERVER_PORT_RANGE_START}..${MC_SERVER_PORT_RANGE_END}}; do 
+    if [ lsof -Pi :"${port}" -sTCP:LISTEN -t >/dev/null ]; then
+       _debug "Port: ${port} is already in use. Skipping..."
        continue
     else
-       _debug "Port ${p} not in use. Selecting..."
+       _debug "Port: ${port} not in use. Selecting..."
        MC_SERVER_PORT_SELECTED="${p}"
        break
     fi
 done
 
+_debug "Validating port selection..."
 if [ -z "${MC_SERVER_PORT_SELECTED}" ]; then
     # I'm making a broad assumption that only minecraft is using the above port range
     _die "JFC you have ${MC_SERVER_MAX_CONCURRENT_INSTANCES} instances running. No ports available..."
 fi
 
+_debug "Updating port in ${MC_INSTALL_DIR}/server.properties"
 sed -i "/^\(server-port=\).*/s//\$MC_SERVER_PORT_SELECTED/" "${MC_INSTALL_DIR}/server.properties" || {
     _die "Failed to modify \"${MC_INSTALL_DIR}/server.properties"
 }
@@ -392,5 +394,8 @@ if [ "${FL_DISABLE_SYSTEMD_START}" -eq 0 ]; then
 
     ip_addresses="$(hostname -I)"
     _success "Server is now running. Go crazy ${ip_addresses}"
+else
+    _log "To start server run: ${MC_EXECUTABLE_START_PATH} ${MC_SERVER_UUID}" 
+    _debug "Skipping systemd start/enable"
 fi
  
