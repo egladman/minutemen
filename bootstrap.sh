@@ -21,6 +21,7 @@ MC_SERVER_UUID="$(uuidgen)" # Each server instance has its own value
 MC_PARENT_DIR="/opt/minecraft"
 MC_SERVER_INSTANCES_DIR="${MC_PARENT_DIR}/instances"
 MC_BIN_DIR="${MC_PARENT_DIR}/bin"
+MC_BIN_DIR_OCTAL=774
 MC_LOG_DIR="${MC_PARENT_DIR}/log"
 MC_LOG_INSTANCE_DIR="${MC_LOG_DIR}/${MC_SERVER_UUID}"
 MC_DOWNLOADS_CACHE_DIR="${MC_PARENT_DIR}/.downloads"
@@ -111,12 +112,11 @@ _init_dir() {
 
     _debug "Checking for directory: ${TARGET_DIR}"
     if [ ! -d "${TARGET_DIR}" ]; then
-        mkdir -p "${ARG[@]}" || _die "Failed to create ${ARG[@]} and set permissions"
-	chown -R "${TARGET_USER}":"${TARGET_USER}" "${TARGET_DIR}" || {
-	    _die "Failed to perform chown on the following dir(s): ${ARG[@]}"
-        }
+        mkdir -p "${ARG[@]}" || _die "Failed to create ${ARG[@]}"
         if [ -n "${ARG[1]}" ]; then # Be ashamed for writing such a shitty block of code
-            chown -R "${TARGET_USER}":"${TARGET_USER}" "${MC_PARENT_DIR}"
+            chown -R "${TARGET_USER}":"${TARGET_USER}" "${MC_PARENT_DIR}" || {
+	        _die "Failed to perform chown on the following dir(s): ${MC_PARENT_DIR}"
+	    }
 	fi
     else
         _log "Directory: ${TARGET_DIR} already exists. Proceeding with install..."
@@ -320,8 +320,8 @@ EOF
 _debug "Updating files in ${MC_BIN_DIR}"
 echo "${MC_EXECUTABLE_START_CONTENTS}" > "${MC_EXECUTABLE_START_PATH}" || _die "Failed to create ${MC_EXECUTABLE_SEND_PATH}"
 echo "${MC_EXECUTABLE_SEND_CONTENTS}" > "${MC_EXECUTABLE_SEND_PATH}" || _die "Failed to create ${MC_EXECUTABLE_SEND_PATH}"
-chown "${MC_USER}":"${MC_USER}" "${MC_BIN_DIR}/*" || _die "Failed to perform chown on ${MC_BIN_DIR}/*"
-chmod +x "${MC_BIN_DIR}/*" || _die "Failed to perform chmod on ${MC_BIN_DIR}/*"
+chown -R "${MC_USER}":"${MC_USER}" "${MC_BIN_DIR}" || _die "Failed to perform chown on ${MC_BIN_DIR}"
+chmod "${MC_BIN_DIR_OCTAL}" -R "${MC_BIN_DIR}" || _die "Failed to perform chmod on ${MC_BIN_DIR}"
 
 _run "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
     # When executed for the first time, the process will exit. We need to accept the EULA
