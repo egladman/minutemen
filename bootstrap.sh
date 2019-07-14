@@ -183,26 +183,26 @@ _debug "Checking for user: ${MC_USER}"
 id -u "${MC_USER}" >/dev/null 2>&1 && _debug "User: ${MC_USER} found." || {
     _debug "User: ${MC_USER} not found. Creating..."
 
+    ADDUSER_PASSWORD_PARAM=""
+
+    # Check if we need to set a password for MC_USER
     if [ -n "${MC_USER_PASSWORD_HASH}" ]; then
 	_debug "Setting password for ${MC_USER}"
+        ADDUSER_PASSWORD_PARAM="--password ${MC_USER_PASSWORD_HASH}"
+    fi
 
-	_if_installed apt-get && adduser --password "${MC_USER_PASSWORD_HASH}" --gecos "" "${MC_USER}" >/dev/null 2>&1 && {
-            MU_USER_CHECK_PASSED=0
-        }
-        _if_installed dnf && adduser --password "${MC_USER_PASSWORD_HASH}" "${MC_USER}" >/dev/null 2>&1 && {
-            MU_USER_CHECK_PASSED=0
-        }
-    else # No password will be set
-        _warn "No password will be set for ${MC_USER}"
+    _if_installed dnf && adduser "${ADDUSER_PASSWORD_PARAM}" "${MC_USER}" >/dev/null 2>&1 && {
+        MU_USER_CHECK_PASSED=0
+    }
 
-	_if_installed apt-get && adduser --disabled-password --gecos "" "${MC_USER}" >/dev/null 2>&1 && {
-            MU_USER_CHECK_PASSED=0
-        }
-        _if_installed dnf && adduser "${MC_USER}" >/dev/null 2>&1 && {
+    if [ -z "${ADDUSER_PASSWORD_PARAM}" ]; then
+        ADDUSER_PASSWORD_PARAM="--disabled-password"
+        _if_installed apt-get && adduser "${ADDUSER_PASSWORD_PARAM}" --gecos "" "${MC_USER}" >/dev/null 2>&1 && {
             MU_USER_CHECK_PASSED=0
         }
     fi
-    wait && MC_USER_PASSWORD_HASH="" # Clear environment variable just in cases...
+
+    wait && MC_USER_PASSWORD_HASH=""; ADDUSER_PASSWORD_PARAM="" # Clear password variables just in case...
 
     if [[ $MU_USER_CHECK_PASSED -ne 0 ]]; then
         _die "Failed to run \"adduser ${MC_USER}\". Does the user already exist?"
