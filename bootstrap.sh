@@ -103,11 +103,11 @@ _init_dir() {
 
     # TODO: Add safety check to validate directory hierarchy
 
-    TARGET_USER="${1}"
+    local TARGET_USER="${1}"
 
     local ARG
     IFS=' ' read -r -a ARG <<< "${2}"
-    TARGET_DIR="${ARG[0]}"
+    local TARGET_DIR="${ARG[0]}"
 
     _debug "Checking for directory: ${TARGET_DIR}"
     if [ ! -d "${TARGET_DIR}" ]; then
