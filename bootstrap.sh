@@ -209,8 +209,8 @@ id -u "${MC_USER}" >/dev/null 2>&1 && _debug "User: ${MC_USER} found." || {
     fi
 }
 
-_init_dir "${MC_USER}" "${MC_PARENT_DIR}"
-_init_dir "${MC_USER}" "${MC_INSTALL_DIR} ${MC_BIN_DIR} ${MC_CACHE_DIR} ${MC_LOG_INSTANCE_DIR}"
+_init_dir "${MC_USER}" "${MC_PARENT_DIR} ${MC_INSTALL_DIR}"
+_init_dir "${MC_USER}" "${MC_BIN_DIR} ${MC_LOG_INSTANCE_DIR} ${MC_DOWNLOADS_CACHE_DIR} ${MC_MODS_CACHE_DIR}"
 
 if [[ ${MU_FORGE_DOWNLOAD_CACHED} -eq 0 ]]; then
     _debug "Copying ${MC_DOWNLOADS_CACHE_DIR}/${M_FORGE_INSTALLER_JAR} to ${MC_INSTALL_DIR}/"
@@ -269,8 +269,14 @@ _run "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PATH} --installSer
         _die "Failed to perform chown on ${MC_INSTALL_DIR}/*"
     }
 
-    _debug "Deleting ${M_FORGE_INSTALLER_JAR_PATH}"
-    rm "${M_FORGE_INSTALLER_JAR_PATH}" || _warn "Failed to delete ${M_FORGE_INSTALLER_JAR_PATH}"
+    if [[ ${MU_FORGE_DOWNLOAD_CACHED} -eq 1 ]]; then
+        _debug "Archiving ${M_FORGE_INSTALLER_JAR_PATH} to ${MC_DOWNLOADS_CACHE_DIR}/"
+        mv "${M_FORGE_INSTALLER_JAR_PATH}" "${MC_DOWNLOADS_CACHE_DIR}/" || {
+	    _warn "Failed to move ${M_FORGE_INSTALLER_JAR_PATH} to ${MC_DOWNLOADS_CACHE_DIR}/"
+	}
+    else
+        rm "${M_FORGE_INSTALLER_JAR_PATH}" || _warn "Failed to delete ${M_FORGE_INSTALLER_JAR_PATH}"
+    fi
 } || {
     _die "Failed to execute ${M_FORGE_INSTALLER_JAR_PATH}"
 }
