@@ -355,7 +355,9 @@ if [ -z "${MC_SERVER_PORT_SELECTED}" ]; then
     _die "JFC you have ${MC_SERVER_MAX_CONCURRENT_INSTANCES} instances running. No ports available..."
 fi
 
-# TODO: Update server.properties with the new port
+sed -i "/^\(server-port=\).*/s//\$MC_SERVER_PORT_SELECTED/" "${MC_INSTALL_DIR}/server.properties" || {
+    _die "Failed to modify \"${MC_INSTALL_DIR}/server.properties"
+}
 
 _debug "Creating ${MC_SYSTEMD_SERVICE_PATH}"
 cat << EOF > "${MC_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
