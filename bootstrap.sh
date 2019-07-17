@@ -318,8 +318,53 @@ read -r -d '' MC_EXECUTABLE_START_CONTENTS << EOF
 if [ -z "\${1}" ]; then
     echo "MC_SERVER_UUID argument required." && exit 1
 fi
+MC_SERVER_UUID="\${1}"
+MC_SERVER_INSTANCE_PIPE="${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${MC_SYSTEMD_SERVICE_NAME}.fifo"
 
-java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_SERVER_INSTANCES_DIR}/\${1}/${M_FORGE_UNIVERSAL_JAR}
+function _mkpipe() {
+    mkfifo "\${1}" -m 777 || {
+        echo "Unable to create named pipe: \${1}"
+        exit 1
+    }
+}
+
+function _flushpipe() {
+    dd if="\${1}" iflag=nonblock of=/dev/null
+}
+
+MC_USER_UID=$(id -u "${MC_USER}")
+MC_SERVER_AVAILABLE_INSTANCES="${MC_SERVER_INSTANCES_DIR}/*"
+echo "Found Instances: \$(ls \${MC_SERVER_AVAILABLE_INSTANCES})"
+
+for i in \${MC_SERVER_AVAILABLE_INSTANCES}; do
+    ps -eo pid,uid,cmd | grep -v grep | grep "\${MC_USER_UID}.*\${i}" >/dev/null 2>&1
+
+    # Check the return code of the ps command that was just ran. grep only returns 0 if there's a match
+    if [ \$? -eq 0 ]; then # grep found a match...
+        echo "\${i} looks healthy. Proceeding..."
+        continue 
+    else # grep didn't find a match
+	echo "Killing stale processes for instance: \$(basename \${i})"
+        ps -eo pid,uid,cmd | grep -v grep | grep "\${MC_USER_UID}.*\${i}" | cut -d' ' -f2 | xargs kill -9 || {
+	    echo "Failed to kill state processes for \${i}"
+	}
+    fi
+done
+
+exit 0
+
+if [ ! -p "\${MC_SERVER_INSTANCE_PIPE}" ]; then
+    _mkpipe "\${MC_SERVER_INSTANCE_PIPE}"
+else # Pipe exists...
+    _flushpipe "\${MC_SERVER_INSTANCE_PIPE}"
+fi
+
+MC_WORKING_DIR="${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/"
+
+pushd "\${MC_WORKING_DIR}" > /dev/null
+tail -f "\${MC_SERVER_INSTANCE_PIPE}" | java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${M_FORGE_UNIVERSAL_JAR}
+popd > /dev/null
+ 
 EOF
 
 # We want these files updated each time the script gets run
