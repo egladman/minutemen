@@ -376,7 +376,7 @@ for i in "\${MC_SERVER_RUNNING_INSTANCES[@]}"; do
     # since we're dealing exclusively with unique identifiers i.e. MC_SERVER_UUID
     if [[ ! "\${LS_OUTPUT_ARR[*]}" =~ "\${i}" ]]; then
         echo "Killing stale processes for instance: \${i}"
-        ps -eo pid,uid,cmd | tr -s ' ' | grep -v grep | grep "\${MC_USER_UID}.*\${i}" | cut -d' ' -f2 | xargs kill -9 || {
+        ps -eo pid,uid,cmd | tr -s ' ' | grep -v grep | grep "\${MC_USER_UID}.*\${i}" | cut -d' ' -f1 | xargs kill -9 || {
 
             # break down of the ugly one liner above ^^
             # [ps -ea         ] Print process info with ONLY the specified columns for ALL users
