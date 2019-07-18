@@ -2,9 +2,16 @@
 
 Build/Provision dedicated minecraft servers with forge mod support in seconds. Platform/Device agnostic; written with cloud computing in mind, however you can just as easily run this on a SBC (Single Board Computer) with no modifications. It might run like shit, but hey...you can do it.
 
-### Need to know
- 
-- Supports `Fedora` and `Ubuntu`.
+I began work on *minutemen* when I started hosting a small modded minecraft server for some friends and I. I was unimpressed with the current opensource offerings I found online so I decided to build my own. Most of the scripts/tutorials I found on forums/blogs either went against Linux best practices or went as far as suggesting `screen` in lieu of a proper init system. I found this solution to be unexceptable. Don't get me wrong, `screen` is great when used as a traditional multiplexer, but it's overkill for this particular use case. 
+
+
+### Features
+
+- Written 100% in Bash :muscle:. Depends only on common readily available Linux utilities and no additional languages
+- Supports `Fedora` and `Ubuntu`
+- Support Systemd
+- Does **NOT** not depend on `screen`; instead [named pipes](https://en.wikipedia.org/wiki/Named_pipe) are used
+- Supports multiple concurrent minecraft servers on a single host
 
 
 ### Quick and Dirty
