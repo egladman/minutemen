@@ -54,6 +54,7 @@ M_FORGE_INSTALLER_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_INSTALLER_JAR}"
 # SYS_* denotes System
 SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
 SYS_TOTAL_MEMORY_MB="$(( $SYS_TOTAL_MEMORY_KB / 1024 ))"
+SYS_RESERVED_MEMORY_MB=128 
 
 # MU_ * denotes Mutex
 MU_JAVA_CHECK_PASSED=1
@@ -290,7 +291,7 @@ _success "${M_FORGE_INSTALLER_JAR} returned code 0. Proceeding..."
 M_FORGE_UNIVERSAL_JAR_PATH="$(cd ${MC_INSTALL_DIR}; ls ${MC_INSTALL_DIR}/forge-*.jar | grep -v ${M_FORGE_INSTALLER_JAR})"
 M_FORGE_UNIVERSAL_JAR="$(basename ${M_FORGE_UNIVERSAL_JAR_PATH})"
 
-MC_MAX_HEAP_SIZE="$(( $SYS_TOTAL_MEMORY_MB - 128 ))M" # Leave 128MB memory for the system to run properly
+MC_MAX_HEAP_SIZE="$(( $SYS_TOTAL_MEMORY_MB - $SYS_RESERVED_MEMORY_MB ))M" # Leave 128MB memory for the system to run properly
 
 read -r -d '' MC_EXECUTABLE_COMMAND_CONTENTS << EOF
 #!/bin/bash
