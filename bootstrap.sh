@@ -42,6 +42,9 @@ MC_EXECUTABLE_COMMAND_PATH="${MC_PARENT_DIR}/bin/${MC_EXECUTABLE_COMMAND}"
 MC_SYSTEMD_SERVICE_NAME="minutemen"
 MC_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MC_SYSTEMD_SERVICE_NAME}.service"
 
+MC_SERVER_INSTANCE_PIPE="${MC_SYSTEMD_SERVICE_NAME}.fifo"
+MC_SERVER_INSTANCE_PIPE_PATH="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}/${MC_SERVER_INSTANCE_PIPE}"
+
 # M_* denotes Minecraft Mod
 M_FORGE_DOWNLOAD_URL="https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.3-27.0.25/forge-1.14.3-27.0.25-installer.jar"
 M_FORGE_DOWNLOAD_SHA1SUM="7b96f250e52584086591e14472b96ec2648a1c9c"
@@ -304,10 +307,8 @@ if [ -z "\${MC_COMMAND}" ]; then
     echo "second argument required." && exit 1
 fi
 
-MC_SERVER_UUID_PID=""
-
-# TODO: Lookup pid from instance uuid
-echo "\${2}" > "/proc/\${MC_SERVER_UUID_PID}/fd/0"
+MC_SERVER_INSTANCE_PIPE_PATH="${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${MC_SERVER_INSTANCE_PIPE}"
+echo "\${MC_COMMAND}" > "\${MC_SERVER_INSTANCE_PIPE_PATH}"
 
 EOF
 
@@ -319,7 +320,7 @@ if [ -z "\${1}" ]; then
     echo "MC_SERVER_UUID argument required." && exit 1
 fi
 MC_SERVER_UUID="\${1}"
-MC_SERVER_INSTANCE_PIPE="${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${MC_SYSTEMD_SERVICE_NAME}.fifo"
+MC_SERVER_INSTANCE_PIPE_PATH="${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${MC_SERVER_INSTANCE_PIPE}"
 
 function _is_uuid() {
     local TARGET_UUID="\${1}"
@@ -388,16 +389,16 @@ for i in "\${MC_SERVER_RUNNING_INSTANCES[@]}"; do
     fi
 done
 
-if [ ! -p "\${MC_SERVER_INSTANCE_PIPE}" ]; then
-    _mkpipe "\${MC_SERVER_INSTANCE_PIPE}"
+if [ ! -p "\${MC_SERVER_INSTANCE_PIPE_PATH}" ]; then
+    _mkpipe "\${MC_SERVER_INSTANCE_PIPE_PATH}"
 else # Pipe exists...
-    _flushpipe "\${MC_SERVER_INSTANCE_PIPE}"
+    _flushpipe "\${MC_SERVER_INSTANCE_PIPE_PATH}"
 fi
 
 MC_WORKING_DIR="${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/"
 
 pushd "\${MC_WORKING_DIR}" > /dev/null
-tail -f "\${MC_SERVER_INSTANCE_PIPE}" | java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${M_FORGE_UNIVERSAL_JAR}
+tail -f "\${MC_SERVER_INSTANCE_PIPE_PATH}" | java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${M_FORGE_UNIVERSAL_JAR}
 popd > /dev/null
  
 EOF
