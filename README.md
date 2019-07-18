@@ -7,11 +7,11 @@ I began work on *minutemen* when I started hosting a small modded minecraft serv
 
 ### Features
 
-- Written 100% in Bash :muscle: Depends only on common readily available Linux utilities and no additional languages
+- Written 100% in Bash :muscle: Depends only on common Linux utilities; no additional languages required
 - Designed to be rerunnable with no repercussions
 - Supports `Fedora` and `Ubuntu`
-- Support Systemd
-- Does **NOT** not depend on `screen`; instead [named pipes](https://en.wikipedia.org/wiki/Named_pipe) are used
+- Supports Systemd
+- Does **NOT** depend on `screen`; instead [named pipes](https://en.wikipedia.org/wiki/Named_pipe) are used
 - Supports multiple concurrent minecraft servers on a single host
 
 
@@ -75,7 +75,7 @@ MC_USER_PASSWORD_HASH="" ./bootstrap.sh
 
 9. Have you created a monster and don't know what to do?
 
-Delete the main installation folder and rerun `bootstrap.sh`
+    Delete the main installation folder and rerun `bootstrap.sh`
 
 ```
 rm -rf /opt/minecraft
