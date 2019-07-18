@@ -318,8 +318,86 @@ read -r -d '' MC_EXECUTABLE_START_CONTENTS << EOF
 if [ -z "\${1}" ]; then
     echo "MC_SERVER_UUID argument required." && exit 1
 fi
+MC_SERVER_UUID="\${1}"
+MC_SERVER_INSTANCE_PIPE="${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${MC_SYSTEMD_SERVICE_NAME}.fifo"
 
-java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_SERVER_INSTANCES_DIR}/\${1}/${M_FORGE_UNIVERSAL_JAR}
+function _is_uuid() {
+    local TARGET_UUID="\${1}"
+
+    if [[ "\${TARGET_UUID}" =~ ^\{?[A-F0-9a-f]{8}-[A-F0-9a-f]{4}-[A-F0-9a-f]{4}-[A-F0-9a-f]{4}-[A-F0-9a-f]{12}\}?$ ]]; then
+        echo 0 # found uuid
+    else
+        echo 1
+    fi
+}
+
+function _mkpipe() {
+    mkfifo "\${1}" -m 777 || {
+        echo "Unable to create named pipe: \${1}"
+        exit 1
+    }
+}
+
+function _flushpipe() {
+    dd if="\${1}" iflag=nonblock of=/dev/null
+}
+
+MC_USER_UID=$(id -u "${MC_USER}")
+MC_SERVER_RUNNING_INSTANCES=() # Declare empty array. We'll push to this later...
+MC_SERVER_AVAILABLE_INSTANCES="${MC_SERVER_INSTANCES_DIR}/*"
+
+PS_STDOUT=\$(mktemp --suffix -${MC_SYSTEMD_SERVICE_NAME})
+ps -eo pid,uid,cmd | tr -s ' ' | grep -v grep | grep "\${MC_USER_UID}.*" > "\${PS_STDOUT}" || {
+    echo "Failed to write to \${PS_STDOUT}"
+    exit 1
+}
+
+while IFS= read -r PS_STDOUT_LINE; do
+    IFS=', ' read -r -a PS_STDOUT_LINE_ARR <<< "\${PS_STDOUT_LINE}"
+    for j in "\${PS_STDOUT_LINE_ARR[@]}"; do
+	if [[ \$(_is_uuid \$j) -eq 0 ]]; then
+            MC_SERVER_RUNNING_INSTANCES+=("\${j}")
+        fi
+    done
+done < "\${PS_STDOUT}"
+
+# It's generally frowned upon to parse the output of ls.
+# Since we maintain the contents of the directory I'm able to make the follow assumption(s):
+#   - Every path printed is a directory
+LS_OUTPUT_ARR=("\$(ls ${MC_SERVER_INSTANCES_DIR})")
+
+# Iterate through all running instances.
+# If the instance dir structure no longer exists kill the process.
+for i in "\${MC_SERVER_RUNNING_INSTANCES[@]}"; do
+    # Check to see if the LS_OUTPUT_ARR contains 'i'
+    # This is by no means a robust check, however we can get away with it
+    # since we're dealing exclusively with unique identifiers i.e. MC_SERVER_UUID
+    if [[ ! "\${LS_OUTPUT_ARR[*]}" =~ "\${i}" ]]; then
+        echo "Killing stale processes for instance: \${i}"
+        ps -eo pid,uid,cmd | tr -s ' ' | grep -v grep | grep "\${MC_USER_UID}.*\${i}" | cut -d' ' -f2 | xargs kill -9 || {
+
+            # break down of the ugly one liner above ^^
+            # [ps -ea         ] Print process info with ONLY the specified columns for ALL users
+            # [tr -s ' '      ] Replace sequential spaces with a single space
+            # [grep -v grep   ] Invert match. (We don't want to see any grep processes show up in our results)
+
+            echo "Failed to kill stale processes for \${i}"
+        }
+    fi
+done
+
+if [ ! -p "\${MC_SERVER_INSTANCE_PIPE}" ]; then
+    _mkpipe "\${MC_SERVER_INSTANCE_PIPE}"
+else # Pipe exists...
+    _flushpipe "\${MC_SERVER_INSTANCE_PIPE}"
+fi
+
+MC_WORKING_DIR="${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/"
+
+pushd "\${MC_WORKING_DIR}" > /dev/null
+tail -f "\${MC_SERVER_INSTANCE_PIPE}" | java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${M_FORGE_UNIVERSAL_JAR}
+popd > /dev/null
+ 
 EOF
 
 # We want these files updated each time the script gets run
