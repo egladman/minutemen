@@ -1,3 +1,6 @@
+**DISCLAIMER:** `vanilla` is an old branch before forge mod support was added `master.`It's not maintained; I'm leaving it up for historic purposes only.
+
+
 # bootstrap-minecraft
 
 ### Need to know
