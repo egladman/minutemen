@@ -342,40 +342,39 @@ function _flushpipe() {
     dd if="\${1}" iflag=nonblock of=/dev/null
 }
 
-function _find_running_instances() {
-    local TARGET_UID="\${1}"
-
-    local PS_STDOUT=\$(mktemp --suffix -${MC_SYSTEMD_SERVICE_NAME})
-    ps -eo pid,uid,cmd | tr -s ' ' | grep -v grep | grep "\${TARGET_UID}.*" > "\${PS_STDOUT}" || {
-        echo "Failed to write to \${PS_STDOUT}"
-        exit 1
-    }
-
-    while IFS= read -r PS_STDOUT_LINE; do
-        IFS=', ' read -r -a PS_STDOUT_LINE_ARR <<< "\${PS_STDOUT_LINE}"
-        for j in "\${PS_STDOUT_LINE_ARR[@]}"; do
-	    if [[ \$(_is_uuid \$j) -eq 0 ]]; then
-                MC_SERVER_RUNNING_INSTANCES+=("\${j}")
-	    fi
-        done
-    done < "\${PS_STDOUT}"
-}
-
+MC_USER_UID=$(id -u "${MC_USER}")
 MC_SERVER_RUNNING_INSTANCES=() # Declare empty array. We'll push to this later...
 MC_SERVER_AVAILABLE_INSTANCES="${MC_SERVER_INSTANCES_DIR}/*"
-MC_USER_UID=$(id -u "${MC_USER}")
 
-_find_running_instances "\${MC_USER_UID}"
+PS_STDOUT=\$(mktemp --suffix -${MC_SYSTEMD_SERVICE_NAME})
+ps -eo pid,uid,cmd | tr -s ' ' | grep -v grep | grep "\${MC_USER_UID}.*" > "\${PS_STDOUT}" || {
+    echo "Failed to write to \${PS_STDOUT}"
+    exit 1
+}
 
-echo "MC_SERVER_RUNNING_INSTANCES: \${MC_SERVER_RUNNING_INSTANCES[@]}"
-echo "MC_SERVER_AVAILABLE_INSTANCES: \${MC_SERVER_AVAILABLE_INSTANCES[@]}"
+while IFS= read -r PS_STDOUT_LINE; do
+    IFS=', ' read -r -a PS_STDOUT_LINE_ARR <<< "\${PS_STDOUT_LINE}"
+    for j in "\${PS_STDOUT_LINE_ARR[@]}"; do
+	if [[ \$(_is_uuid \$j) -eq 0 ]]; then
+            MC_SERVER_RUNNING_INSTANCES+=("\${j}")
+        fi
+    done
+done < "\${PS_STDOUT}"
+
+# It's generally frowned upon to parse the output of ls.
+# Since we maintain the contents of the directory I'm able to make the follow assumption(s):
+#   - Every path printed is a directory
+LS_OUTPUT_ARR=("\$(ls ${MC_SERVER_INSTANCES_DIR})")
 
 # Iterate through all running instances.
 # If the instance dir structure no longer exists kill the process.
 for i in "\${MC_SERVER_RUNNING_INSTANCES[@]}"; do
-    if [[ ! " \${MC_SERVER_AVAILABLE_INSTANCES[@]} " =~ " \${i} " ]] && [ "\${i}" != "\${MC_SERVER_UUID}" ]; then
+    # Check to see if the LS_OUTPUT_ARR contains 'i'
+    # This is by no means a robust check, however we can get away with it
+    # since we're dealing exclusively with unique identifiers i.e. MC_SERVER_UUID
+    if [[ ! "\${LS_OUTPUT_ARR[*]}" =~ "\${i}" ]]; then
         echo "Killing stale processes for instance: \${i}"
-        ps -eo pid,uid,cmd | grep -v grep | grep "\${MC_USER_UID}.*\${i}" | cut -d' ' -f1 | xargs kill -9 || {
+        ps -eo pid,uid,cmd | tr -s ' ' | grep -v grep | grep "\${MC_USER_UID}.*\${i}" | cut -d' ' -f2 | xargs kill -9 || {
 
             # break down of the ugly one liner above ^^
             # [ps -ea         ] Print process info with ONLY the specified columns for ALL users
