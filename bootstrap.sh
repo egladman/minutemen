@@ -35,12 +35,12 @@ MC_SERVER_PORT_RANGE_START=25565 # Default minecraft port
 MC_SERVER_PORT_RANGE_END=$(( ${MC_SERVER_PORT_RANGE_START} + ${MC_SERVER_MAX_CONCURRENT_INSTANCES} ))
 
 MC_EXECUTABLE_START="start"
-MC_EXECUTABLE_START_PATH="${MC_PARENT_DIR}/${MC_BIN_DIR}/${MC_EXECUTABLE_START}"
+MC_EXECUTABLE_START_PATH="${MC_BIN_DIR}/${MC_EXECUTABLE_START}"
 MC_EXECUTABLE_COMMAND="tell" # At first this was "command", but i felt it might get confusing having an executable in ./bin named "command"
-MC_EXECUTABLE_COMMAND_PATH="${MC_PARENT_DIR}/${MC_BIN_DIR}/${MC_EXECUTABLE_COMMAND}"
+MC_EXECUTABLE_COMMAND_PATH="${MC_BIN_DIR}/${MC_EXECUTABLE_COMMAND}"
 
 MC_SYSTEMD_SERVICE_NAME="minutemen"
-MC_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MC_SYSTEMD_SERVICE_NAME}.service"
+MC_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MC_SYSTEMD_SERVICE_NAME}@.service"
 
 MC_SERVER_INSTANCE_PIPE="${MC_SYSTEMD_SERVICE_NAME}.fifo"
 MC_SERVER_INSTANCE_PIPE_PATH="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}/${MC_SERVER_INSTANCE_PIPE}"
@@ -406,51 +406,13 @@ EOF
 
 # We want these files updated each time the script gets run
 _debug "Updating files in ${MC_BIN_DIR}"
-echo "${MC_EXECUTABLE_START_CONTENTS}" > "${MC_EXECUTABLE_START_PATH}" || _die "Failed to create ${MC_EXECUTABLE_SEND_PATH}"
+echo "${MC_EXECUTABLE_START_CONTENTS}" > "${MC_EXECUTABLE_START_PATH}" || _die "Failed to create ${MC_EXECUTABLE_START_PATH}"
 echo "${MC_EXECUTABLE_COMMAND_CONTENTS}" > "${MC_EXECUTABLE_COMMAND_PATH}" || _die "Failed to create ${MC_EXECUTABLE_COMMAND_PATH}"
 chown -R "${MC_USER}":"${MC_USER}" "${MC_BIN_DIR}" || _die "Failed to perform chown on ${MC_BIN_DIR}"
 chmod "${MC_BIN_DIR_OCTAL}" -R "${MC_BIN_DIR}" || _die "Failed to perform chmod on ${MC_BIN_DIR}"
 
-_run "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
-    # When executed for the first time, the process will exit. We need to accept the EULA
-    _debug "Accepting end user license agreement"
-    sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify \"${MC_INSTALL_DIR}/eula.txt\". ${M_FORGE_UNIVERSAL_JAR} failed most likely."
-} || _die "Failed to execute ${MC_EXECUTABLE_PATH} for the first time."
-
-# Install mods if present...
-for mod in "${MC_MODS_CACHE_DIR}"/*.jar; do
-    test -f "$mod" && {
-	_debug "Installing mod ${mod} to ${MC_INSTALL_DIR}/mods/${mod}"
-        cp "${mod}" "${MC_INSTALL_DIR}/mods/"
-    }
-done
-
-# What port should we run the instance on?
-_debug "Determining port..."
-for port in {${MC_SERVER_PORT_RANGE_START}..${MC_SERVER_PORT_RANGE_END}}; do 
-    if [ lsof -Pi :"${port}" -sTCP:LISTEN -t >/dev/null ]; then
-       _debug "Port: ${port} is already in use. Skipping..."
-       continue
-    else
-       _debug "Port: ${port} not in use. Selecting..."
-       MC_SERVER_PORT_SELECTED="${p}"
-       break
-    fi
-done
-
-_debug "Validating port selection..."
-if [ -z "${MC_SERVER_PORT_SELECTED}" ]; then
-    # I'm making a broad assumption that only minecraft is using the above port range
-    _die "JFC you have ${MC_SERVER_MAX_CONCURRENT_INSTANCES} instances running. No ports available..."
-fi
-
-_debug "Updating port in ${MC_INSTALL_DIR}/server.properties"
-sed -i "/^\(server-port=\).*/s//\$MC_SERVER_PORT_SELECTED/" "${MC_INSTALL_DIR}/server.properties" || {
-    _die "Failed to modify \"${MC_INSTALL_DIR}/server.properties"
-}
-
 _debug "Creating ${MC_SYSTEMD_SERVICE_PATH}"
-cat << EOF > "${MC_SYSTEMD_SERVICE_PATH}" || _die "Failed to create systemd service"
+cat << EOF > "${MC_SYSTEMD_SERVICE_PATH}" || _die "Failed to write to ${MC_SYSTEMD_SERVICE_PATH}"
 [Unit]
 Description=minecraft server: %i
 After=network.target
@@ -468,6 +430,51 @@ RestartSec=60s
 WantedBy=multi-user.target
 
 EOF
+
+_run "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
+    # When executed for the first time, the process will exit. We need to accept the EULA
+    _debug "Accepting end user license agreement"
+    sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify \"${MC_INSTALL_DIR}/eula.txt\". ${M_FORGE_UNIVERSAL_JAR} failed most likely."
+} || _die "Failed to execute ${MC_EXECUTABLE_PATH} for the first time."
+
+# Install mods if present...
+for mod in "${MC_MODS_CACHE_DIR}"/*.jar; do
+    test -f "$mod" && {
+	_debug "Installing mod ${mod} to ${MC_INSTALL_DIR}/mods/${mod}"
+        cp "${mod}" "${MC_INSTALL_DIR}/mods/"
+    }
+done
+
+#TODO: Which is faster? {start..end} or $(seq start end)
+
+# What port should we run the instance on?
+_debug "Determining port..."
+
+for port in $(seq ${MC_SERVER_PORT_RANGE_START} ${MC_SERVER_PORT_RANGE_END}); do
+
+   # I've found netcat to be faster than lsof
+   nc -vz 127.0.0.1 "${port}"
+   #lsof -Pi :${port} -sTCP:LISTEN
+
+   if [ $? -eq 0 ]; then
+       _debug "Port: ${port} is already in use. Skipping..."
+    else
+       _debug "Port: ${port} not in use. Selecting..."
+       MC_SERVER_PORT_SELECTED="${port}"
+       break
+    fi
+done
+
+_debug "Validating port selection..."
+if [ -z "${MC_SERVER_PORT_SELECTED}" ]; then
+    # I'm making a broad assumption that only minecraft is using the above port range
+    _die "JFC you have ${MC_SERVER_MAX_CONCURRENT_INSTANCES} instances running. No ports available..."
+fi
+
+_debug "Updating port in ${MC_INSTALL_DIR}/server.properties"
+sed -i "/^\(server-port=\).*/s//\$MC_SERVER_PORT_SELECTED/" "${MC_INSTALL_DIR}/server.properties" || {
+    _die "Failed to modify \"${MC_INSTALL_DIR}/server.properties"
+}
 
 if [ "${FL_DISABLE_SYSTEMD_START}" -eq 0 ]; then
     _log "Configuring systemd to automatically start ${MC_SYSTEMD_SERVICE_NAME}.service on boot"
