@@ -49,7 +49,7 @@ cd minutemen
 chown mminecraft:mminecraft /opt/minecraft/<uuid>/mods/*
 ```
 
-3. Mods placed in `/opt/minecraft/.mods` will be automatically installed
+3. Mods placed in `/opt/minecraft/.mods` will be automatically be installed
 
 4. If you're running multiple builds place the forge installer jar in `/opt/minecraft/.downloads` to reduce network activity
 
