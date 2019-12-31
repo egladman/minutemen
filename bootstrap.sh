@@ -16,7 +16,7 @@
 # The following can be optionally passed in as environment variables
 # - MC_USER_PASSWORD_HASH
 
-# MC_* denotes Minecraft or Master Chief 
+# MC_* denotes Minecraft or Master Chief if you're a Halo fan
 MC_SERVER_UUID="$(uuidgen)" # Each server instance has its own value
 MC_PARENT_DIR="/opt/minecraft"
 MC_SERVER_INSTANCES_DIR="${MC_PARENT_DIR}/instances"
@@ -187,23 +187,23 @@ _debug "Checking for user: ${MC_USER}"
 id -u "${MC_USER}" >/dev/null 2>&1 && _debug "User: ${MC_USER} found." || {
     _debug "User: ${MC_USER} not found. Creating..."
 
+    #TODO: As i add support for more distros this will need to be heavily refactored
     ADDUSER_PASSWORD_PARAM=""
-
-    # Check if we need to set a password for MC_USER
-    if [ -n "${MC_USER_PASSWORD_HASH}" ]; then
-	_debug "Setting password for ${MC_USER}"
-        ADDUSER_PASSWORD_PARAM="--password ${MC_USER_PASSWORD_HASH}"
-    fi
-
-    _if_installed dnf && adduser "${ADDUSER_PASSWORD_PARAM}" "${MC_USER}" >/dev/null 2>&1 && {
+    _if_installed dnf && adduser ${ADDUSER_PASSWORD_PARAM} ${MC_USER} >/dev/null 2>&1 && {
         MU_USER_CHECK_PASSED=0
     }
 
-    if [ -z "${ADDUSER_PASSWORD_PARAM}" ]; then
-        ADDUSER_PASSWORD_PARAM="--disabled-password"
-        _if_installed apt-get && adduser "${ADDUSER_PASSWORD_PARAM}" --gecos "" "${MC_USER}" >/dev/null 2>&1 && {
-            MU_USER_CHECK_PASSED=0
-        }
+    ADDUSER_PASSWORD_PARAM="--disabled-password"
+    _if_installed apt-get && adduser "${ADDUSER_PASSWORD_PARAM}" --gecos "" "${MC_USER}" >/dev/null 2>&1 && {
+        MU_USER_CHECK_PASSED=0
+    }
+
+    # Check if we need to set a password for MC_USER
+    if [ -n "${MC_USER_PASSWORD_HASH}" ]; then
+        _debug "Setting password for ${MC_USER}"
+        usermod -p "${MC_USER_PASSWORD_HASH}" "${MC_USER}" >/dev/null 2>&1 || {
+            _die "Failed to set password for ${MC_USER}"
+	}
     fi
 
     wait && MC_USER_PASSWORD_HASH=""; ADDUSER_PASSWORD_PARAM="" # Clear password variables just in case...

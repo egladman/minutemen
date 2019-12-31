@@ -32,6 +32,8 @@ cd minutemen
 ./bootstrap.sh -v
 ```
 
+*Depending on your user priveleges you might need to prefix `./bootstrap.sh` with `sudo`. This will not be discussed any further since it's a fundamental concept for Unix-like operating systems.* 
+
 *Modify the script to your heart's content...*
  
 
@@ -44,7 +46,7 @@ cd minutemen
 
 2. If you add mods (i.e. `.jar`) to `/opt/minecraft/mods` be sure to set permissions
 ```
-chown minecraft:minecraft /opt/minecraft/<uuid>/mods/*
+chown mminecraft:mminecraft /opt/minecraft/<uuid>/mods/*
 ```
 
 3. Mods placed in `/opt/minecraft/.mods` will be automatically installed
@@ -53,7 +55,7 @@ chown minecraft:minecraft /opt/minecraft/<uuid>/mods/*
 
 5. If you want to skip systemd and run the server manually you can
 ```
-su - minecraft
+su - mminecraft
 /opt/minecraft/bin/start
 ```
 
@@ -73,10 +75,32 @@ journalctl -u minutemen@<uuid>.service
 MC_USER_PASSWORD_HASH="" ./bootstrap.sh
 ```
 
+To generate a password use the following command:
+```
+#Tested againt mkpasswd 5.5.3 on Fedora31
+mkpasswd --method=sha512crypt mySuperSecretPassword
+```
+*Run `mkpasswd --method=help` to print all the available encryption algorthims. `SHA-512` is by far the strongest provided by `mkpasswd`. By default `mkpasswdd` salts the string.*
+
+For example if you'd like user: `mminecraft` to have password: `HelloWorld` you'd do
+```
+mkpasswd --method=sha512crypt HelloWorld
+$6$RN.HLGL5BosPQ2ZS$kVfGYi709anfOLAn7Hc18zwTfhRhwEcLfSMvhKl2yVU1wIJV4P4sJTheebx8BMpzr0HWl/cIsp3GK8FO670v9.
+```
+
+Then pass the hash into `bootstrap.sh` as an environment variable
+```
+MC_USER_PASSWORD_HASH='$6$RN.HLGL5BosPQ2ZS$kVfGYi709anfOLAn7Hc18zwTfhRhwEcLfSMvhKl2yVU1wIJV4P4sJTheebx8BMpzr0HWl/cIsp3GK8FO670v9.' ./bootstrap.sh
+```
+
+After the script executes, you can then authenticate as user: `mminecraft` with password: `HelloWorld`
+```
+su - mminecraft
+```
+
 9. Have you created a monster and don't know what to do?
 
-    Delete the main installation folder and rerun `bootstrap.sh`
-
+Delete the main installation folder and rerun `bootstrap.sh`
 ```
 rm -rf /opt/minecraft
 ```
