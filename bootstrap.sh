@@ -28,7 +28,7 @@ MC_DOWNLOADS_CACHE_DIR="${MC_PARENT_DIR}/.downloads"
 MC_MODS_CACHE_DIR="${MC_PARENT_DIR}/.mods"
 MC_INSTALL_DIR="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}"
 MC_MAX_HEAP_SIZE="896M" # This variable gets redefined later on. Not some random number i pulled out of a hat: 1024-128=896
-MC_USER="minecraft" # For the love of god don't be an asshat and change to "root"
+MC_USER="mminecraft" # Stands for "Minutemen Minecraft". For the love of god don't be an asshat and change to "root"
 
 MC_SERVER_MAX_CONCURRENT_INSTANCES=16 # Realistically I never see myself running more than 4 instances simultaneously...
 MC_SERVER_PORT_RANGE_START=25565 # Default minecraft port
