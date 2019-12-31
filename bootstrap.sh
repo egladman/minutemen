@@ -399,7 +399,7 @@ fi
 MC_WORKING_DIR="${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/"
 
 pushd "\${MC_WORKING_DIR}" > /dev/null
-tail -f "\${MC_SERVER_INSTANCE_PIPE_PATH}" | java -Xmx${MC_MAX_HEAP_SIZE} -jar ${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${M_FORGE_UNIVERSAL_JAR}
+tail -f "\${MC_SERVER_INSTANCE_PIPE_PATH}" | java -Xmx${MC_MAX_HEAP_SIZE} -Djava.awt.headless=true -jar ${MC_SERVER_INSTANCES_DIR}/\${MC_SERVER_UUID}/${M_FORGE_UNIVERSAL_JAR}
 popd > /dev/null
  
 EOF
@@ -422,7 +422,7 @@ Type=simple
 User=${MC_USER}
 Group=${MC_USER}
 WorkingDirectory=${MC_SERVER_INSTANCES_DIR}/%i
-ExecStart=/bin/bash ${MC_SERVER_INSTANCES_DIR}/%i/${MC_EXECUTABLE_START}
+ExecStart=/bin/bash ${MC_BIN_DIR}/start %i
 Restart=on-failure
 RestartSec=60s
 
@@ -431,11 +431,20 @@ WantedBy=multi-user.target
 
 EOF
 
-_run "cd ${MC_INSTALL_DIR}; /bin/bash ${MC_EXECUTABLE_PATH}" && {
+
+systemctl start "${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID}" && {
+    # When executed for the first time, the process will generate eula.txt and exit. We need to accept the EULA
+    while [ ! -f "${MC_INSTALL_DIR}/eula.txt" ]
+    do
+        sleep 2
+    done
+
     # When executed for the first time, the process will exit. We need to accept the EULA
     _debug "Accepting end user license agreement"
     sed -i -e 's/false/true/' "${MC_INSTALL_DIR}/eula.txt" || _die "Failed to modify \"${MC_INSTALL_DIR}/eula.txt\". ${M_FORGE_UNIVERSAL_JAR} failed most likely."
-} || _die "Failed to execute ${MC_EXECUTABLE_PATH} for the first time."
+    # Systemd still thinks everything is running as expected, so we have to manually stop it...
+    systemctl stop "${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID}" || _warn "Failed to stop ${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID} after first run."
+} || _die "Failed to execute ${MC_EXECUTABLE_PATH} via systemd for the first time."
 
 # Install mods if present...
 for mod in "${MC_MODS_CACHE_DIR}"/*.jar; do
@@ -490,7 +499,8 @@ if [ "${FL_DISABLE_SYSTEMD_START}" -eq 0 ]; then
     ip_addresses="$(hostname -I)"
     _success "Server is now running. Go crazy ${ip_addresses}"
 else
-    _log "To start server run: ${MC_EXECUTABLE_START_PATH} ${MC_SERVER_UUID}" 
+    _log "To start via systemd (preferred) run: \"systemctl start ${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID}\""
+    _log "To manually start server run: \"${MC_EXECUTABLE_START_PATH} ${MC_SERVER_UUID}\" as ${MC_USER}"
     _debug "Skipping systemd start/enable"
 fi
  
