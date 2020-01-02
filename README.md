@@ -123,7 +123,7 @@ journalctl -u minutemen@<uuid>.service -f
 
 ## Console Commands
 
-To run the following commands you'll need to authenticate as `mminecraft
+To run the following commands you'll need to authenticate as `mminecraft`
 ```
 su - mminecraft
 ```
