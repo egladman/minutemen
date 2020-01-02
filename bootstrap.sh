@@ -196,9 +196,10 @@ _debug "Checking for user: ${MC_USER}"
 id -u "${MC_USER}" >/dev/null 2>&1 && _debug "User: ${MC_USER} found." || {
     _debug "User: ${MC_USER} not found. Creating..."
 
-    #TODO: As i add support for more distros this will need to be heavily refactored
+    #TODO: Check if adduser behaves the same on ubuntu so i can reuse the same code...
     ADDUSER_PASSWORD_PARAM=""
     _if_installed dnf && adduser ${ADDUSER_PASSWORD_PARAM} ${MC_USER} >/dev/null 2>&1 && {
+        passwd -d "${MC_USER}" || _die "Failed to remove password requirements for user: ${MC_USER}"
         MU_USER_CHECK_PASSED=0
     }
 
