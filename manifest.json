@@ -1,28 +1,35 @@
 {
-    "java-edition": [
-        {
-            "version": "1.14.4",
-            "url": "https://launcher.mojang.com/v1/objects/3dc3d84a581f14691199cf6831b71ed1296a9fdf/server.jar",
-            "sha256": "5ecdedab3a6e129321a444490d0a467c25ea702a24a99cebe3b6aed41f8f5729",
-            "custom": [
-                "forge": {
-                    "url": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.4-28.1.0/forge-1.14.4-28.1.0-installer.jar",
-                    "sha256": "b2387668f96a126184179f50ffe395e1bf40d103e0471439e191912e2696be77",
-                    "version": "28.1.0"
-                }
-            ]
-        },
-        {
-            "version": "1.14.3",
-            "url": "https://launcher.mojang.com/v1/objects/d0d0fe2b1dc6ab4c65554cb734270872b72dadd6/server.jar",
-            "sha256": "942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f1041b38",
-            "custom": [
-                "forge": {
-                    "url": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.3-27.0.25/forge-1.14.3-27.0.25-installer.jar",
-                    "sha256": "73f8f52a96c42751d94bd20d0b33263b5e91c5a97d8b765d4614dc3294e9186e",
-                    "version": "27.0.25"
-                }
-            ]
-        }
-    ]
+  "meta": {
+    "version": "1.0.0"
+  },
+  "java-edition": [
+    {
+      "version": "1.14.4",
+      "url": "https://launcher.mojang.com/v1/objects/3dc3d84a581f14691199cf6831b71ed1296a9fdf/server.jar",
+      "sha256": "5ecdedab3a6e129321a444490d0a467c25ea702a24a99cebe3b6aed41f8f5729",
+      "custom": {
+        "forge": [
+          {
+            "url": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.4-28.1.0/forge-1.14.4-28.1.0-installer.jar",
+            "sha256": "b2387668f96a126184179f50ffe395e1bf40d103e0471439e191912e2696be77",
+            "version": "28.1.0"
+          }
+        ]
+      }
+    },
+    {
+      "version": "1.14.3",
+      "url": "https://launcher.mojang.com/v1/objects/d0d0fe2b1dc6ab4c65554cb734270872b72dadd6/server.jar",
+      "sha256": "942256f0bfec40f2331b1b0c55d7a683b86ee40e51fa500a2aa76cf1f1041b38",
+      "custom": {
+        "forge": [
+          {
+            "url": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.3-27.0.25/forge-1.14.3-27.0.25-installer.jar",
+            "sha256": "73f8f52a96c42751d94bd20d0b33263b5e91c5a97d8b765d4614dc3294e9186e",
+            "version": "27.0.25"
+          }
+        ]
+      }
+    }
+  ]
 }
