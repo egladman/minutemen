@@ -75,9 +75,11 @@ systemctl kill -s SIGKILL minutemen@<uuid>
 
 ### Mods
 
-1. If you add mods (i.e. `.jar`) to `/opt/minecraft/<uuid>/mods` be sure to set permissions
+1. If you add mods (i.e. `.jar`) to `/opt/minecraft/instances/<uuid>/mods` or `/opt/minecraft/.forgemods` be sure to set permissions
 ```
-chown mminecraft:mminecraft /opt/minecraft/<uuid>/mods/*
+chown -R mminecraft:mminecraft /opt/minecraft/.forgemods
+# or
+chown -R mminecraft:mminecraft /opt/minecraft/instances/<uuid>/mods/
 ```
 
 2. Mods placed in `/opt/minecraft/.forgemods` will be automatically be installed
