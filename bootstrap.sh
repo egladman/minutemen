@@ -596,7 +596,6 @@ WantedBy=multi-user.target
 
 EOF
 
-
 systemctl start "${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID}" && {
     # When executed for the first time, the process will generate eula.txt and exit. We need to accept the EULA
     while [ ! -f "${MC_INSTALL_DIR}/eula.txt" ]
