@@ -24,6 +24,11 @@
       "custom": {
         "forge": [
           {
+            "url": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.3-27.0.60/forge-1.14.3-27.0.60-installer.jar",
+            "sha256": "bd9b206421c4f5773b4872013d75a28e48501555d74cf34544e2d6580ba9c02c",
+            "version": "27.0.60"
+          },
+          {
             "url": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.3-27.0.25/forge-1.14.3-27.0.25-installer.jar",
             "sha256": "73f8f52a96c42751d94bd20d0b33263b5e91c5a97d8b765d4614dc3294e9186e",
             "version": "27.0.25"
