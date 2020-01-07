@@ -1,6 +1,6 @@
 # [minutemen](https://github.com/egladman/minutemen)
 
-Build/Provision dedicated minecraft servers with forge mod support in seconds. Platform/Device agnostic; written with cloud computing in mind, however you can just as easily run this on a SBC (Single Board Computer) with no modifications. It might run like shit, but hey...you can do it.
+Build/Provision dedicated minecraft servers with forge mod support in seconds.
 
 ## How this project came to be
 
@@ -11,10 +11,12 @@ I began work on *minutemen* when I offered to host a small modded minecraft serv
 
 - Written 100% in Bash :muscle: Depends only on common Linux utilities; no additional languages required
 - Designed to be rerunnable with no repercussions
+- Built with security in mind
 - Supports `Fedora` and `Ubuntu`. If your distro of choice isn't compatible make an issue.
 - Utilizes Systemd
 - Does **NOT** depend on `screen`; instead [named pipes](https://en.wikipedia.org/wiki/Named_pipe) are used
 - Supports multiple concurrent minecraft servers on a single host
+- Supports multiple versions of ForgeMod. Each instance can run a different version.
 
 
 ## Installaton
@@ -33,10 +35,10 @@ curl https://raw.githubusercontent.com/egladman/minutemen/master/bootstrap.sh | 
 ```
 git clone git@github.com:egladman/minutemen.git
 cd minutemen
-./bootstrap.sh -v
+./bootstrap.sh -v -e 28.1.0
 ```
 
-**Note:** Depending on your user priveleges you might need to prefix `./bootstrap.sh` with `sudo`. 
+**Note:** Checkout `manifest.json` to see all supported forgemod versions. Other versions can be added with minimum effort. 
 
 
 ## Tips and Tricks
@@ -46,14 +48,19 @@ cd minutemen
 ./bootstrap.sh -h
 ```
 
-2. Have you created a monster and don't know what to do?
+2. Override jvm max heap size in megabytes
+```
+./bootstrap.sh -m 4096M
+```
+
+3. Have you created a monster and don't know what to do?
 
 Delete the main installation folder and rerun `bootstrap.sh`
 ```
 rm -rf /opt/minecraft
 ```
 
-3. Kill instance
+4. Kill instance
 
 **Warning:** You run the risk of data loss. Can you use `systemctl stop minutemen@<uuid>`?
 
@@ -61,19 +68,19 @@ rm -rf /opt/minecraft
 systemctl kill -s SIGKILL minutemen@<uuid>
 ```
 
-4. If you're running multiple builds place the forge installer jar in `/opt/minecraft/.downloads` to reduce network activity. The `.jar` is cached after the first install.
+5. If you're running multiple builds place the forge installer jar in `/opt/minecraft/.cache` to reduce network activity. The `.jar` is cached after the first install.
 
 
 ## Configuration
 
 ### Mods
 
-1. If you add mods (i.e. `.jar`) to `/opt/minecraft/mods` be sure to set permissions
+1. If you add mods (i.e. `.jar`) to `/opt/minecraft/<uuid>/mods` be sure to set permissions
 ```
 chown mminecraft:mminecraft /opt/minecraft/<uuid>/mods/*
 ```
 
-2. Mods placed in `/opt/minecraft/.mods` will be automatically be installed
+2. Mods placed in `/opt/minecraft/.forgemods` will be automatically be installed
 
 
 ### Password

@@ -16,6 +16,8 @@
 # The following can be optionally passed in as environment variables
 # - MC_USER_PASSWORD_HASH
 
+umask 003 #ug=rwx,o=r
+
 # MC_* denotes Minecraft or Master Chief if you're a Halo fan
 MC_SERVER_UUID="$(uuidgen)" # Each server instance has its own value
 MC_PARENT_DIR="/opt/minecraft"
@@ -25,8 +27,8 @@ MC_BIN_DIR_OCTAL=774
 MC_LOG_DIR="${MC_PARENT_DIR}/log"
 MC_LOG_INSTANCE_DIR="${MC_LOG_DIR}/${MC_SERVER_UUID}"
 MC_BACKUP_DIR="${MC_PARENT_DIR}/backups"
-MC_DOWNLOADS_CACHE_DIR="${MC_PARENT_DIR}/.downloads"
-MC_MODS_CACHE_DIR="${MC_PARENT_DIR}/.mods"
+MC_DOWNLOADS_CACHE_DIR="${MC_PARENT_DIR}/.cache"
+MC_FORGE_MODS_CACHE_DIR="${MC_PARENT_DIR}/.forgemods"
 MC_INSTALL_DIR="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}"
 MC_MAX_HEAP_SIZE="896M" # This variable gets redefined later on. Not some random number i pulled out of a hat: 1024-128=896
 MC_USER="mminecraft" # Stands for "Minutemen Minecraft". For the love of god don't be an asshat and change to "root"
@@ -54,11 +56,19 @@ MC_SYSTEMD_SERVICE_PATH="/etc/systemd/system/${MC_SYSTEMD_SERVICE_NAME}@.service
 MC_SERVER_INSTANCE_PIPE="${MC_SYSTEMD_SERVICE_NAME}.fifo"
 MC_SERVER_INSTANCE_PIPE_PATH="${MC_SERVER_INSTANCES_DIR}/${MC_SERVER_UUID}/${MC_SERVER_INSTANCE_PIPE}"
 
+# MM_* denotes MinuteMen
+MM_MANIFEST_JSON_PATH="${MC_DOWNLOADS_CACHE_DIR}/manifest.json"
+MM_MANIFEST_JSON_URL="https://raw.githubusercontent.com/egladman/minutemen/master/manifest.json"
+MM_MANIFEST_JSON_SHA256SUM="76b168f3ebefbcd2ee3f1636bd0dc271ec28a406fb47c5328a14277b1639e42b"
+
 # M_* denotes Minecraft Mod
-M_FORGE_DOWNLOAD_URL="https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.14.3-27.0.25/forge-1.14.3-27.0.25-installer.jar"
-M_FORGE_DOWNLOAD_SHA1SUM="7b96f250e52584086591e14472b96ec2648a1c9c"
-M_FORGE_INSTALLER_JAR="$(basename ${M_FORGE_DOWNLOAD_URL})"
-M_FORGE_INSTALLER_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_INSTALLER_JAR}"
+M_FORGE_DOWNLOAD_URL=""
+M_FORGE_DOWNLOAD_SHA256SUM=""
+M_FORGE_VERSION=""
+M_FORGE_INSTALLER_JAR=""
+M_FORGE_INSTALLER_JAR_PATH=""
+M_FORGE_DOWNLOAD_ACTUAL_SHA256SUM=""
+M_FORGE_UNIVERSAL_JAR_PATH=""
 
 # SYS_* denotes System
 SYS_TOTAL_MEMORY_KB="$(grep MemTotal /proc/meminfo | awk '{print $2}')"
@@ -80,11 +90,11 @@ CLR_NONE="\033[0m"
 # FL_ * denotes Flag
 FL_VERBOSE=1
 FL_DISABLE_SYSTEMD_START=1
+FL_LOCAL_INSTALL=1 # Simple no frills way to determine if curl was piped to bash (even though i don't condone this...)
 
-# Variables that are dynamically set later
-M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM=""
-M_FORGE_UNIVERSAL_JAR_PATH=""
-MC_SERVER_PORT_SELECTED=""
+MC_SERVER_PORT_SELECTED="" # dynamically set later on...
+
+MC_MAX_HEAP_SIZE="$(( $SYS_TOTAL_MEMORY_MB - $SYS_RESERVED_MEMORY_MB ))M" # This can be overwritten with a CLI param
 
 # Helpers
 _log() {
@@ -128,9 +138,9 @@ _init_dir() {
         mkdir -p "${ARG[@]}" || _die "Failed to create ${ARG[@]}"
         if [ -n "${ARG[1]}" ]; then # Be ashamed for writing such a shitty block of code
             chown -R "${TARGET_USER}":"${TARGET_USER}" "${MC_PARENT_DIR}" || {
-	        _die "Failed to perform chown on the following dir(s): ${MC_PARENT_DIR}"
-	    }
-	fi
+	              _die "Failed to perform chown on the following dir(s): ${MC_PARENT_DIR}"
+	          }
+        fi
     else
         _log "Directory: ${TARGET_DIR} already exists. Proceeding with install..."
     fi
@@ -142,6 +152,25 @@ _run() {
     su - "${MC_USER}" -c "${CMD}"
 }
 
+_validate_semver() {
+    local SEMANTIC_VERSION="${1}"
+    if [[ ! "${SEMANTIC_VERSION}" =~ ^[0-9]+(\.[0-9]+){2,3}$ ]]; then
+        _die "\"${SEMANTIC_VERSION}\" isn't a valid semantic version."
+    fi
+}
+
+_compare_checksum() {
+    local TARGET_FILE="${1}"
+    local CHECKSUM_ACTUAL="$(sha256sum ${TARGET_FILE} | cut -d' ' -f1)"
+    local CHECKSUM_DESIRED="${2}"
+
+    if [ "${CHECKSUM_ACTUAL}" != "${CHECKSUM_DESIRED}" ]; then
+        _debug "CURRENT CHECKSUM: ${CHECKSUM_ACTUAL}"
+        _debug "DESIRED CHECKSUM: ${CHECKSUM_DESIRED}"
+        _die "Checksum doesn't match for file: ${TARGET_FILE}"
+    fi
+}
+
 _if_installed() {
     # Check if a bin is present
     local PROGRAM="${1}"
@@ -150,23 +179,29 @@ _if_installed() {
 
 _usage() {
 cat << EOF
-${0##*/} [-h] [-v] [-s] -- minutemen -- Build/Provision Minecraft Servers with ForgeMods Support in under 60 seconds
+${0##*/} [-h] [-v] [-s] [-m integer] -- minutemen -- Build/Provision Minecraft Servers with ForgeMods Support in under 60 seconds
 where:
     -h  show this help text
     -v  verbose
     -s  disable systemd start/enable
+    -m  override jvm max heap size (default: ${MC_MAX_HEAP_SIZE})
+    -e  specify forgemod version
 EOF
 }
 
-while getopts ':h :v :s' option; do
+while getopts ':h :v :s e: m:' option; do
     case "${option}" in
         h|\?) _usage
            exit 0
            ;;
         v) FL_VERBOSE=0
            ;;
-	s) FL_DISABLE_SYSTEMD_START=0
-	   ;;
+        s) FL_DISABLE_SYSTEMD_START=0
+           ;;
+        m) MC_MAX_HEAP_SIZE="${OPTARG}"
+           ;;
+        e) M_FORGE_VERSION="${OPTARG}"
+           ;;
         :) printf "missing argument for -%s\n" "${OPTARG}"
            _usage
            exit 1
@@ -175,16 +210,17 @@ while getopts ':h :v :s' option; do
 done
 shift $((OPTIND - 1))
 
-# Where the magic happens
-
-umask 003 #ug=rwx,o=r
-
 _if_installed systemctl || _die "systemd not found. No other init systems are currently supported." # Sanity check
 
-if [ -d "${MC_SYSTEMD_SERVICE_PATH}" ]; then
-    _debug "Attempting to stop all instances of ${MC_SYSTEMD_SERVICE_NAME}.service"
-    systemctl daemon-reload || _warn "Failed to run \"systemctl daemon-reload\""
-    systemctl stop "${MC_SYSTEMD_SERVICE_NAME}"@'*' || _log "${MC_SYSTEMD_SERVICE_NAME}.service not running..."
+if [ -n "${M_FORGE_VERSION}" ]; then
+    _validate_semver "${M_FORGE_VERSION}"
+else
+    _die "-e parameter is missing. You must specify the forgemod version."
+fi
+
+if [ -f "./$(basename ${MM_MANIFEST_JSON_PATH})"]; then
+    _debug "Found ${MC_MANIFEST_JSON} in working directory. Detected local install."
+    FL_LOCAL_INSTALL=0
 fi
 
 if [ -f "${MC_DOWNLOADS_CACHE_DIR}/${M_FORGE_INSTALLER_JAR}" ]; then
@@ -213,7 +249,7 @@ id -u "${MC_USER}" >/dev/null 2>&1 && _debug "User: ${MC_USER} found." || {
         _debug "Setting password for ${MC_USER}"
         usermod -p "${MC_USER_PASSWORD_HASH}" "${MC_USER}" >/dev/null 2>&1 || {
             _die "Failed to set password for ${MC_USER}"
-	}
+	  }
     fi
 
     wait && MC_USER_PASSWORD_HASH=""; ADDUSER_PASSWORD_PARAM="" # Clear password variables just in case...
@@ -224,7 +260,36 @@ id -u "${MC_USER}" >/dev/null 2>&1 && _debug "User: ${MC_USER} found." || {
 }
 
 _init_dir "${MC_USER}" "${MC_PARENT_DIR}"
-_init_dir "${MC_USER}" "${MC_INSTALL_DIR} ${MC_BIN_DIR} ${MC_LOG_INSTANCE_DIR} ${MC_DOWNLOADS_CACHE_DIR} ${MC_MODS_CACHE_DIR}"
+_init_dir "${MC_USER}" "${MC_INSTALL_DIR} ${MC_BIN_DIR} ${MC_LOG_INSTANCE_DIR} ${MC_DOWNLOADS_CACHE_DIR} ${MC_FORGE_MODS_CACHE_DIR}"
+
+if [[ ${FL_LOCAL_INSTALL} -eq 1 ]]; then # Fetch manifest.json and validate file integrity
+    _debug "Fetching ${MM_MANIFEST_JSON_URL}"
+    wget -N "${MM_MANIFEST_JSON_URL}" -P "${MC_DOWNLOADS_CACHE_DIR}" || _die "Failed to fetch ${MM_MANIFEST_JSON_URL}"
+
+    MM_MANIFEST_JSON_PATH="${MC_DOWNLOADS_CACHE_DIR}/$(basename ${MM_MANIFEST_JSON_PATH})"
+    _compare_checksum "${MM_MANIFEST_JSON_PATH}" "${MM_MANIFEST_JSON_SHA256SUM}"
+fi
+
+# Install Ubuntu dependencies
+apt_dependencies=(
+    "openjdk-8-jdk" # Must be the first index!! openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
+    "jq"
+)
+_if_installed apt-get && apt-get update -y && apt-get install -y "${apt_dependencies[@]}"
+
+# Install Fedora dependencies
+dnf_dependencies=(
+    "java-1.8.0-openjdk" # Must be the first index!!
+    "jq"
+)
+_if_installed dnf && dnf update -y && dnf install -y "${dnf_dependencies[@]}"
+
+#jq --raw-output '.["java-edition"][].custom.forge[] | select(.version == "27.0.25") | .url' manifest.json
+
+M_FORGE_DOWNLOAD_URL=$(jq --raw-output --arg _semver "${M_FORGE_VERSION}" '.["java-edition"][].custom.forge[] | select(.version == $_semver) | .url' "${MM_MANIFEST_JSON_PATH}")
+M_FORGE_DOWNLOAD_SHA256SUM=$(jq --raw-output --arg _semver "${M_FORGE_VERSION}" '.["java-edition"][].custom.forge[] | select(.version == $_semver) | .sha256' "${MM_MANIFEST_JSON_PATH}")
+M_FORGE_INSTALLER_JAR="$(basename ${M_FORGE_DOWNLOAD_URL})"
+M_FORGE_INSTALLER_JAR_PATH="${MC_INSTALL_DIR}/${M_FORGE_INSTALLER_JAR}"
 
 if [[ ${MU_FORGE_DOWNLOAD_CACHED} -eq 0 ]]; then
     _debug "Copying ${MC_DOWNLOADS_CACHE_DIR}/${M_FORGE_INSTALLER_JAR} to ${MC_INSTALL_DIR}/"
@@ -239,25 +304,7 @@ else
     }
 fi
 
-# Validate file download integrity
-M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM="$(sha1sum ${M_FORGE_INSTALLER_JAR_PATH} | cut -d' ' -f1)"
-if [ "${M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM}" != "${M_FORGE_DOWNLOAD_SHA1SUM}" ]; then
-    _debug "M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM: ${M_FORGE_DOWNLOAD_ACTUAL_SHA1SUM}"
-    _debug "M_FORGE_DOWNLOAD_SHA1SUM: ${M_FORGE_DOWNLOAD_SHA1SUM}"
-    _die "sha1sum doesn't match for ${M_FORGE_INSTALLER_JAR_PATH}"
-fi
-
-# Install Ubuntu dependencies
-apt_dependencies=(
-    "openjdk-8-jdk" # Must be the first index!! openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
-)
-_if_installed apt-get && apt-get update -y && apt-get install -y "${apt_dependencies[@]}"
-
-# Install Fedora dependencies
-dnf_dependencies=(
-    "java-1.8.0-openjdk" # Must be the first index!!
-)
-_if_installed dnf && dnf update -y && dnf install -y "${dnf_dependencies[@]}"
+_compare_checksum "${M_FORGE_INSTALLER_JAR_PATH}" "${M_FORGE_DOWNLOAD_SHA256SUM}"
 
 # Rebinding /usr/bin/java could negatively impact other aspects of the os stack i'm NOT going to automate it.
 _if_installed dnf && update-alternatives --list | grep "^java.*${dnf_dependencies[0]}" && {
@@ -286,7 +333,7 @@ _run "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PATH} --installSer
     if [[ ${MU_FORGE_DOWNLOAD_CACHED} -eq 1 ]]; then
         _debug "Archiving ${M_FORGE_INSTALLER_JAR_PATH} to ${MC_DOWNLOADS_CACHE_DIR}/"
         mv "${M_FORGE_INSTALLER_JAR_PATH}" "${MC_DOWNLOADS_CACHE_DIR}/" || {
-	    _warn "Failed to move ${M_FORGE_INSTALLER_JAR_PATH} to ${MC_DOWNLOADS_CACHE_DIR}/"
+	      _warn "Failed to move ${M_FORGE_INSTALLER_JAR_PATH} to ${MC_DOWNLOADS_CACHE_DIR}/"
 	}
     else
         rm "${M_FORGE_INSTALLER_JAR_PATH}" || _warn "Failed to delete ${M_FORGE_INSTALLER_JAR_PATH}"
@@ -297,11 +344,9 @@ _run "cd ${MC_INSTALL_DIR}; java -jar ${M_FORGE_INSTALLER_JAR_PATH} --installSer
 
 _success "${M_FORGE_INSTALLER_JAR} returned code 0. Proceeding..."
 
-# the "cd" ensures we get just the basename 
+# the "cd" ensures we get just the basename
 M_FORGE_UNIVERSAL_JAR_PATH="$(cd ${MC_INSTALL_DIR}; ls ${MC_INSTALL_DIR}/forge-*.jar | grep -v ${M_FORGE_INSTALLER_JAR})"
 M_FORGE_UNIVERSAL_JAR="$(basename ${M_FORGE_UNIVERSAL_JAR_PATH})"
-
-MC_MAX_HEAP_SIZE="$(( $SYS_TOTAL_MEMORY_MB - $SYS_RESERVED_MEMORY_MB ))M" # Leave 128MB memory for the system to run properly
 
 read -r -d '' MC_EXECUTABLE_COMMAND_CONTENTS << EOF
 #!/bin/bash
@@ -566,9 +611,9 @@ systemctl start "${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID}" && {
     systemctl kill -s SIGKILL "${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID}" || _warn "Failed to kill ${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID} after first run."
 } || _die "Failed to execute ${MC_EXECUTABLE_PATH} via systemd for the first time."
 
-# Install mods if present...
-for mod in "${MC_MODS_CACHE_DIR}"/*.jar; do
-    test -f "$mod" && {
+# Install forge mods if present...
+for mod in "${MC_FORGE_MODS_CACHE_DIR}"/*.jar; do
+    test -f "${mod}" && {
 	_debug "Installing mod ${mod} to ${MC_INSTALL_DIR}/mods/${mod}"
         cp "${mod}" "${MC_INSTALL_DIR}/mods/"
     }
@@ -580,9 +625,8 @@ done
 _debug "Determining port..."
 
 for port in $(seq ${MC_SERVER_PORT_RANGE_START} ${MC_SERVER_PORT_RANGE_END}); do
-
    # I've found netcat to be faster than lsof
-   nc -vz 127.0.0.1 "${port}"
+   nc -vz 127.0.0.1 "${port}" >/dev/null 2>&1
    #lsof -Pi :${port} -sTCP:LISTEN
 
    if [ $? -eq 0 ]; then
@@ -622,4 +666,3 @@ else
     _log "To start via systemd (preferred) run: \"systemctl start ${MC_SYSTEMD_SERVICE_NAME}@${MC_SERVER_UUID}\""
     _debug "Skipping systemd start/enable"
 fi
-
