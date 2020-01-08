@@ -4,7 +4,7 @@ Build/Provision dedicated minecraft servers with forge mod support in seconds.
 
 ## How this project came to be
 
-I began work on *minutemen* when I offered to host a small modded minecraft server for some friends and I. I was unimpressed with the current opensource offerings I found online so I decided to build my own. Most of the scripts/tutorials I found on forums/blogs either went against Linux best practices or went as far as suggesting `screen` in lieu of a named pipe and proper init system. I found these solutions to be unexceptable.
+I began work on *minutemen* when I offered to host a small modded minecraft server for some friends and I. I was unimpressed with the current opensource offerings I found online so I decided to build my own. Most of the scripts/tutorials I found on forums/blogs either went against Linux best practices or went as far as suggesting `screen` in lieu of a named pipe and proper init system. I found these solutions to be unacceptable.
 
 
 ## Features
