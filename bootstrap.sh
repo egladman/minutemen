@@ -18,8 +18,8 @@
 
 umask 003 #ug=rwx,o=r
 
-# MC_* denotes Minecraft or Master Chief if you're a Halo fan
-MC_SERVER_UUID="$(uuidgen)" # Each server instance has its own value
+# MC_* denotes Minecraft or Master Chief
+MC_SERVER_UUID="$(cat /proc/sys/kernel/random/uuid)" # Each server instance has its own value
 MC_PARENT_DIR="/opt/minecraft"
 MC_SERVER_INSTANCES_DIR="${MC_PARENT_DIR}/instances"
 MC_BIN_DIR="${MC_PARENT_DIR}/bin"
@@ -283,8 +283,6 @@ dnf_dependencies=(
     "jq"
 )
 _if_installed dnf && dnf update -y && dnf install -y "${dnf_dependencies[@]}"
-
-#jq --raw-output '.["java-edition"][].custom.forge[] | select(.version == "27.0.25") | .url' manifest.json
 
 M_FORGE_DOWNLOAD_URL=$(jq --raw-output --arg _semver "${M_FORGE_VERSION}" '.["java-edition"][].custom.forge[] | select(.version == $_semver) | .url' "${MM_MANIFEST_JSON_PATH}")
 M_FORGE_DOWNLOAD_SHA256SUM=$(jq --raw-output --arg _semver "${M_FORGE_VERSION}" '.["java-edition"][].custom.forge[] | select(.version == $_semver) | .sha256' "${MM_MANIFEST_JSON_PATH}")
