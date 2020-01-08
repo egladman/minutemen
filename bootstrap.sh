@@ -91,6 +91,7 @@ CLR_NONE="\033[0m"
 FL_VERBOSE=1
 FL_DISABLE_SYSTEMD_START=1
 FL_LOCAL_INSTALL=1 # Simple no frills way to determine if curl was piped to bash (even though i don't condone this...)
+FL_ENABLE_SFTP=1
 
 MC_SERVER_PORT_SELECTED="" # dynamically set later on...
 
@@ -179,22 +180,25 @@ _if_installed() {
 
 _usage() {
 cat << EOF
-${0##*/} [-h] [-v] [-s] [-m integer] -- minutemen -- Build/Provision Minecraft Servers with ForgeMods Support in under 60 seconds
+${0##*/} [-h] [-v] [-o] [-s] [-m integer] -- minutemen -- Build/Provision Minecraft Servers with ForgeMods Support in under 60 seconds
 where:
     -h  show this help text
     -v  verbose
     -s  disable systemd start/enable
     -m  override jvm max heap size (default: ${MC_MAX_HEAP_SIZE})
     -e  specify forgemod version
+    -o  enable sftp server
 EOF
 }
 
-while getopts ':h :v :s e: m:' option; do
+while getopts ':h :o :v :s e: m:' option; do
     case "${option}" in
         h|\?) _usage
            exit 0
            ;;
         v) FL_VERBOSE=0
+           ;;
+        o) FL_ENABLE_SFTP=0
            ;;
         s) FL_DISABLE_SYSTEMD_START=0
            ;;
@@ -275,16 +279,24 @@ apt_dependencies=(
     "openjdk-8-jdk" # Must be the first index!! openjdk-11-jdk works fine with vanilla Minecraft, but not with Forge
     "jq"
 )
-_if_installed apt-get && apt-get update -y && apt-get install -y "${apt_dependencies[@]}"
 
-# Install Fedora dependencies
 dnf_dependencies=(
     "java-1.8.0-openjdk" # Must be the first index!!
     "jq"
 )
+
+if [[ ${FL_ENABLE_SFTP} -eq 0 ]]; then
+    apt_dependencies+=( "openssh-server" )
+    dnf_dependencies+=( "openssh-server" )
+fi
+
+_if_installed apt-get && apt-get update -y && apt-get install -y "${apt_dependencies[@]}"
 _if_installed dnf && dnf update -y && dnf install -y "${dnf_dependencies[@]}"
 
 #jq --raw-output '.["java-edition"][].custom.forge[] | select(.version == "27.0.25") | .url' manifest.json
+if [[ ${FL_ENABLE_SFTP} -eq 0 ]]; then
+    #TODO
+fi
 
 M_FORGE_DOWNLOAD_URL=$(jq --raw-output --arg _semver "${M_FORGE_VERSION}" '.["java-edition"][].custom.forge[] | select(.version == $_semver) | .url' "${MM_MANIFEST_JSON_PATH}")
 M_FORGE_DOWNLOAD_SHA256SUM=$(jq --raw-output --arg _semver "${M_FORGE_VERSION}" '.["java-edition"][].custom.forge[] | select(.version == $_semver) | .sha256' "${MM_MANIFEST_JSON_PATH}")
