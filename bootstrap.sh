@@ -233,13 +233,13 @@ id -u "${MC_USER}" >/dev/null 2>&1 && _debug "User: ${MC_USER} found." || {
     _debug "User: ${MC_USER} not found. Creating..."
 
     #TODO: Check if adduser behaves the same on ubuntu so i can reuse the same code...
-    ADDUSER_PASSWORD_PARAM=""
+    ADDUSER_PASSWORD_PARAM="--system"
     _if_installed dnf && adduser ${ADDUSER_PASSWORD_PARAM} ${MC_USER} >/dev/null 2>&1 && {
         passwd -d "${MC_USER}" || _die "Failed to remove password requirements for user: ${MC_USER}"
         MU_USER_CHECK_PASSED=0
     }
 
-    ADDUSER_PASSWORD_PARAM="--disabled-password"
+    ADDUSER_PASSWORD_PARAM="--system --disabled-password"
     _if_installed apt-get && adduser "${ADDUSER_PASSWORD_PARAM}" --gecos "" "${MC_USER}" >/dev/null 2>&1 && {
         MU_USER_CHECK_PASSED=0
     }
